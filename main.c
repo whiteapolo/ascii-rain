@@ -22,7 +22,7 @@ typedef struct {
     char **data;
 } Screen;
 
-void revertTermSettings();
+void resetTermSettings();
 
 char getInactiveChar()
 {
@@ -36,7 +36,7 @@ char getActiveChar()
 
 bool isActiveChar(char c)
 {
-    return !(bool)strchr(inActiveChars, c);
+    return !strchr(inActiveChars, c);
 }
 
 bool shouldContinueStride()
@@ -46,7 +46,7 @@ bool shouldContinueStride()
 
 bool isExitKey(int key)
 {
-    return (bool)strchr(exitKeys, key);
+    return strchr(exitKeys, key);
 }
 
 bool shouldExit()
@@ -64,7 +64,7 @@ void printColoredChar(char c, const char *color)
     printf("%s%c%s", color, c, C0);
 }
 
-Screen newScreen()
+Screen createScreen()
 {
     ERROR e;
     Screen screen;
@@ -100,37 +100,38 @@ void displayScreen(const Screen screen)
     updateScreen(); 
 }
 
-void moveScreenDown(Screen *screen)
+void shiftScreenDown(Screen *screen)
 {
     for (int i = screen->height - 1; i > 0; i--) {
         for (int j = 0; j < screen->width; j++) {
-            char *c = &screen->data[i][j];
-            const bool curr = isActiveChar(screen->data[i][j]);
-            const bool next = isActiveChar(screen->data[i - 1][j]);
+            char *curr = &screen->data[i][j];
+            const bool isCurrActive = isActiveChar(screen->data[i][j]);
+            const bool isAboveActive = isActiveChar(screen->data[i - 1][j]);
 
-            if (!curr && next) *c = getActiveChar();
-            else if (!next) *c = getInactiveChar();
+            if (!isCurrActive && isAboveActive) *curr = getActiveChar();
+            else if (!isAboveActive) *curr = getInactiveChar();
         }
     }
 }
 
-void makeFollowingRow(Screen *screen)
+void generateTopRow(Screen *screen)
 {
     for (int i = 0; i < screen->width; i++) {
-        const bool a = shouldContinueStride();
-        const bool b = isActiveChar(screen->data[1][i]);
-        screen->data[0][i] = (a ^ b) ? getInactiveChar() : getActiveChar();
+        char *curr = &screen->data[0][i];
+        const bool continueStride = shouldContinueStride();
+        const bool isActiveBelow = isActiveChar(screen->data[1][i]);
+        *curr = (continueStride ^ isActiveBelow) ? getInactiveChar() : getActiveChar();
     }
 }
 
 void updateScreenSize(Screen *screen)
 {
     freeScreen(*screen);
-    *screen = newScreen();
+    *screen = createScreen();
     clearScreen();
 }
 
-void revertTermSettings()
+void resetTermSettings()
 {
     showCursor();
     disableRawMode();
@@ -143,21 +144,21 @@ void initTermSettings()
     hideCursor();
     enterAlternativeScreen();
     enableRawMode(0, 0);
-    atexit(revertTermSettings);
+    atexit(resetTermSettings);
 }
 
 int main(void)
 {
     initTermSettings();
-    Screen screen = newScreen();
+    Screen screen = createScreen();
 
     registerChangeInWindowSize(lambda(void, () {
         updateScreenSize(&screen);
     }));
 
     while (!shouldExit()) {
-        moveScreenDown(&screen);
-        makeFollowingRow(&screen);
+        shiftScreenDown(&screen);
+        generateTopRow(&screen);
         displayScreen(screen);
         sleepDeci(delayDeciSeconds);
     }
