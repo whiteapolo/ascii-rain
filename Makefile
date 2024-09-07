@@ -3,13 +3,14 @@ CC = cc
 CFLAGS = -Wall -Wextra -O3
 TARGET = asciirain
 PREFIX = ~/.local/bin
+SRC = main.c mat.c
 
 # Default rule
 all: $(TARGET)
 
-# Compile the program
-$(TARGET): main.c
-	$(CC) $(CFLAGS) -o $(TARGET) main.c
+# Compile the program with multiple source files
+$(TARGET): $(SRC)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
 
 # Clean rule to remove the executable and object files
 clean:

@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -6,213 +5,163 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <string.h>
-
 #define ERROR_IMPL
 #include "error.h"
-
 #define CURSOR_IMPL
 #include "cursor.h"
 
-#define FOR_RANGE(var, from, to, jumps) for (int var = (from); var < (to); var+=jumps)
-#define FOR(var, till) FOR_RANGE(var, 0, till, 1)
+#include "config.h"
+#include "mat.h"
 
-typedef struct {
-    char c;
-    bool active;
-} Glypn;
+#define lambda(return_type, function_body) \
+    ({ return_type __fn__ function_body __fn__; })
 
 typedef struct {
     int width;
     int height;
-    Glypn **data;
+    char **data;
 } Screen;
 
-const char charcters[] = {
-    "!\"#$%&'()*+,-./0123456789:;<=>?@"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"
-    "abcdefghijklmnopqrstuvwxyz{|}~"
-};
+void revertTermSettings();
 
-static const int charctersLen = (sizeof(charcters) / sizeof(charcters[0])) - 1;
-static Screen screen;
-
-char getRandomCharecter();
-void init();
-void destroy();
-void pdie(const char *label, ERROR e);
-void die(const char *fmt, ...);
-static void *exitMalloc(size_t size);
-void **alocateMatrix(int x, int y, int elementSize);
-void matSet(void **mat, int x, int y, int elementSize, char value);
-void freeMat(void **mat, int y);
-void newScreen();
-void freeScreen();
-void windowSizeChanged();
-void printGlypn(Glypn gl);
-void refreshScreen(const Screen screen);
-void moveScreenDown(Screen *screen);
-bool shouldContinueStride();
-void makeFollowingRow(Screen *screen);
-
-char getRandomCharecter()
+char getInactiveChar()
 {
-    return charcters[rand() % charctersLen];
+    return inActiveChars[rand() % inActiveCharsLen];
 }
 
-void init()
+char getActiveChar()
 {
-    srand(time(NULL));
-    hideCursor();
-    enterAlternativeScreen();
-    disableLineWrap();
-    enableRawMode(0, 0);
-    enableFullBuffering(stdout);
-    registerChangeInWindowSize(windowSizeChanged);
-    newScreen();
+    return activeChars[rand() % activeCharsLen];
 }
 
-void destroy()
+bool isActiveChar(char c)
 {
-    freeScreen();
-    showCursor();
-    disableRawMode();
-    enableLineWrap();
-    exitAlternativeScreen();
+    return !(bool)strchr(inActiveChars, c);
 }
 
-void pdie(const char *label, ERROR e)
+bool shouldContinueStride()
 {
-	printError(label, e);
-    destroy();
-	exit(EXIT_FAILURE);
+    return rand() % avgStrideLen != 0;
 }
 
-void die(const char *fmt, ...)
+bool isExitKey(int key)
 {
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    destroy();
-    exit(EXIT_FAILURE);
+    return (bool)strchr(exitKeys, key);
 }
 
-static void *exitMalloc(size_t size)
+bool shouldExit()
 {
-	void *ptr = malloc(size);
-	if (ptr == NULL)
-        die("exitMalloc");
-	return ptr;
+    return isExitKey(readKey());
 }
 
-void **alocateMatrix(int x, int y, int elementSize)
+int sleepDeci(int deciSeconds)
 {
-    void **mat = exitMalloc(sizeof(void*) * y);
-    FOR (i, y)
-        mat[i] = exitMalloc(elementSize * x);
-    return mat;
+    return usleep(deciSeconds * 10000);
 }
 
-void matSet(void **mat, int x, int y, int elementSize, char value)
+void printColoredChar(char c, const char *color)
 {
-    FOR (i, y)
-        memset(mat[i], x * elementSize, value);
+    printf("%s%c%s", color, c, C0);
 }
 
-void freeMat(void **mat, int y)
-{
-    FOR (i, y)
-        free(mat[i]);
-    free(mat);
-}
-
-void newScreen()
+Screen newScreen()
 {
     ERROR e;
+    Screen screen;
 
     if ((e = getScreenSize(&screen.width, &screen.height)) != OK)
-        pdie("newScreen", e);
+        pdie("failed to get screen size", e);
 
-    screen.width /= 2;
+    screen.width = (screen.width / 2);
     screen.height += 1;
 
-    screen.data = (Glypn**)alocateMatrix(screen.width, screen.height, sizeof(Glypn));
-    matSet((void**)screen.data, screen.width, screen.height, sizeof(Glypn), 0);
+    screen.data = (char**)matAlloc(screen.width, screen.height, sizeof(char));
+    for (int y = 0; y < screen.height; y++)
+        for (int x = 0; x < screen.width; x++)
+            screen.data[y][x] = getInactiveChar();
+
+    return screen;
 }
 
-void freeScreen()
+void freeScreen(Screen screen)
 {
-    freeMat((void**)screen.data, screen.height);
+    matFree((void**)screen.data, screen.height);
 }
 
-void windowSizeChanged()
+void displayScreen(const Screen screen)
 {
-    freeScreen();
-    newScreen();
-}
-
-void printGlypn(Glypn gl)
-{
-    printf(C2 "%c" C0, gl.active ? gl.c : ' ');
-}
-
-void refreshScreen(const Screen screen)
-{
-    setCursorPos(0, 0);
-    FOR(i, screen.height) {
-        setCursorPos(0, i);
-        FOR(j, screen.width) {
-            printGlypn(screen.data[i][j]);
+    for (int y = 0; y < screen.height; y++) {
+        setCursorPos(0, y);
+        for (int x = 0; x < screen.width; x++) {
+            printColoredChar(screen.data[y][x], activeColor);
             printf(" ");
         }
     }
+    updateScreen(); 
 }
 
 void moveScreenDown(Screen *screen)
 {
     for (int i = screen->height - 1; i > 0; i--) {
         for (int j = 0; j < screen->width; j++) {
-            Glypn *gl = &screen->data[i][j];
-            const bool before = screen->data[i][j].active;
-            const bool after = screen->data[i - 1][j].active;
-            gl->active = after;
-            if (!before && after)
-                gl->c = getRandomCharecter();
+            char *c = &screen->data[i][j];
+            const bool curr = isActiveChar(screen->data[i][j]);
+            const bool next = isActiveChar(screen->data[i - 1][j]);
+
+            if (!curr && next) *c = getActiveChar();
+            else if (!next) *c = getInactiveChar();
         }
     }
-}
-
-bool shouldContinueStride()
-{
-    return rand() % 8 != 0;
 }
 
 void makeFollowingRow(Screen *screen)
 {
-    FOR (i, screen->width) {
-        if (shouldContinueStride()) {
-            screen->data[0][i].c = getRandomCharecter();
-            screen->data[0][i].active = screen->data[1][i].active;
-        } else {
-            screen->data[0][i].active = !screen->data[1][i].active;
-        }
+    for (int i = 0; i < screen->width; i++) {
+        const bool a = shouldContinueStride();
+        const bool b = isActiveChar(screen->data[1][i]);
+        screen->data[0][i] = (a ^ b) ? getInactiveChar() : getActiveChar();
     }
+}
+
+void updateScreenSize(Screen *screen)
+{
+    freeScreen(*screen);
+    *screen = newScreen();
+    clearScreen();
+}
+
+void revertTermSettings()
+{
+    showCursor();
+    disableRawMode();
+    exitAlternativeScreen();
+}
+
+void initTermSettings()
+{
+    srand(time(NULL));
+    hideCursor();
+    enterAlternativeScreen();
+    enableRawMode(0, 0);
+    atexit(revertTermSettings);
 }
 
 int main(void)
 {
-    init();
+    initTermSettings();
+    Screen screen = newScreen();
 
-    int key = readKey();
+    registerChangeInWindowSize(lambda(void, () {
+        updateScreenSize(&screen);
+    }));
 
-    while (key != 'q') {
+    while (!shouldExit()) {
         moveScreenDown(&screen);
         makeFollowingRow(&screen);
-        refreshScreen(screen);
-        key = readKey();
-        usleep(40000);
+        displayScreen(screen);
+        sleepDeci(delayDeciSeconds);
     }
 
-    destroy();
+    freeScreen(screen);
     return EXIT_SUCCESS;
 }

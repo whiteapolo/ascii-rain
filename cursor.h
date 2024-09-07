@@ -5,25 +5,28 @@
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
-#define C0  "\e[0m"     /*  RESET        */
+#define C0   "\e[0m"     //  RESET
+#define BOLD "\e[1m"     //  BOLD
 
-#define C1  "\e[0;31m"  /*  RED          */
-#define C2  "\e[0;32m"  /*  GREEN        */
-#define C3  "\e[0;33m"  /*  YELLOW       */
-#define C4  "\e[0;34m"  /*  BLUE         */
-#define C5  "\e[0;035m" /*  MAGENTA      */
-#define C6  "\e[0;36m"  /*  CYAN         */
-#define C7  "\e[0;37m"  /*  WHITE        */
-#define C8  "\e[0;90m"  /*  GRAY         */
+#define C1   "\e[0;31m"  //  RED
+#define C2   "\e[0;32m"  //  GREEN
+#define C3   "\e[0;33m"  //  YELLOW
+#define C4   "\e[0;34m"  //  BLUE
+#define C5   "\e[0;035m" //  MAGENTA
+#define C6   "\e[0;36m"  //  CYAN
+#define C7   "\e[0;37m"  //  WHITE
+#define C8   "\e[0;90m"  //  GRAY
 
-#define B1  "\e[1;91m"  /*  BOLD RED     */
-#define B2  "\e[1;92m"  /*  BOLD GREEN   */
-#define B3  "\e[1;93m"  /*  BOLD YELLOW  */
-#define B4  "\e[1;94m"  /*  BOLD BLUE    */
-#define B5  "\e[1;95m"  /*  BOLD MAGENTA */
-#define B6  "\e[1;96m"  /*  BOLD CYAN    */
-#define B7  "\e[1;97m"  /*  BOLD WHITE   */
-#define B8  "\e[1;90m"  /*  BOLD GRAY    */
+#define B1   "\e[0;91m"  //  LIGHT RED
+#define B2   "\e[0;92m"  //  LIGHT GREEN
+#define B3   "\e[0;93m"  //  LIGHT YELLOW
+#define B4   "\e[0;94m"  //  LIGHT BLUE
+#define B5   "\e[0;95m"  //  LIGHT MAGENTA
+#define B6   "\e[0;96m"  //  LIGHT CYAN
+#define B7   "\e[0;97m"  //  LIGHT WHITE
+#define B8   "\e[0;90m"  //  LIGHT GRAY
+
+struct termios savedTerm;
 
 enum KEY {
     EMPTY_KEY = 999,
@@ -85,6 +88,9 @@ void clearScreen();
 
 void updateScreen();
 
+ERROR saveTermSettings();
+ERROR restoreTermSettings();
+
 ERROR getScreenSizeByCursor(int *width, int *height);
 ERROR getScreenSizeByIoctl(int *width, int *height);
 ERROR getScreenSize(int *width, int *height);
@@ -108,7 +114,7 @@ int readKey();
     #include <signal.h>
     #include "error.h"
 
-    static struct termios originalTermios;
+    struct termios originalTermios;
 
     ERROR enableRawMode(int vminKeys, int vtime)
     {
@@ -232,6 +238,20 @@ int readKey();
     void updateScreen()
     {
         fflush(stdout);
+    }
+
+    ERROR saveTermSettings()
+    {
+        if (tcgetattr(STDIN_FILENO, &savedTerm) == -1)
+            return "tcgetattr";
+        return OK;
+    }
+
+    ERROR restoreTermSettings()
+    {
+        if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &savedTerm) == -1)
+            return "tcsetattr";
+        return OK;
     }
 
     ERROR getScreenSizeByCursor(int *width, int *height)
