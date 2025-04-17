@@ -1,6 +1,6 @@
 # Ascii Rain
 
-![thumbnail](./imgs/grid-01.png)
+![thumbnail](./demo/ascii-rain.gif)
 
 ## Quick Start
 
