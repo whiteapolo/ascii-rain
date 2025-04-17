@@ -9,7 +9,12 @@ $ make
 $ ./ascii-rain
 ```
 
-### For System Wide installation
+### System Wide installation
 ```console
 $ sudo make install
+```
+
+### Uninstall
+```console
+$ sudo make uninstall
 ```
