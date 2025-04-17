@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define CURSOR_IMPL
-#include "mystb/cursor.h"
+#include "cursor.h"
 
 #include "config.h"
 #include "mat.h"
