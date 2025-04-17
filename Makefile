@@ -1,8 +1,8 @@
 # Variables
 CC = cc
 CFLAGS = -Wall -Wextra -O3
-TARGET = asciirain
-PREFIX = ~/.local/bin
+TARGET = ascii-rain
+PREFIX = /usr/local/bin
 SRC = main.c mat.c
 
 # Default rule
@@ -16,12 +16,12 @@ $(TARGET): $(SRC)
 clean:
 	rm -f $(TARGET)
 
-# Install rule to move the executable to ~/.local/bin/
+# Install rule to move the executable to /usr/local/bin/
 install: $(TARGET)
 	mkdir -p $(PREFIX)
 	cp $(TARGET) $(PREFIX)/$(TARGET)
 
-# Uninstall rule to remove the executable from ~/.local/bin/
+# Uninstall rule to remove the executable from /usr/local/bin/
 uninstall:
 	rm -f $(PREFIX)/$(TARGET)
 

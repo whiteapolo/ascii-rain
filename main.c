@@ -5,10 +5,9 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <string.h>
-#define ERROR_IMPL
-#include "error.h"
+
 #define CURSOR_IMPL
-#include "cursor.h"
+#include "mystb/cursor.h"
 
 #include "config.h"
 #include "mat.h"
@@ -23,6 +22,12 @@ typedef struct {
 } Screen;
 
 void resetTermSettings();
+
+void die(const char *msg)
+{
+	perror(msg);
+	exit(EXIT_FAILURE);
+}
 
 char getInactiveChar()
 {
@@ -66,11 +71,10 @@ void printColoredChar(char c, const char *color)
 
 Screen createScreen()
 {
-    ERROR e;
     Screen screen;
 
-    if ((e = getScreenSize(&screen.width, &screen.height)) != OK)
-        pdie("failed to get screen size", e);
+    if ((getScreenSize(&screen.width, &screen.height)) != Ok)
+        die("failed to get screen size");
 
     screen.width = (screen.width / 2);
     screen.height += 1;
@@ -90,14 +94,17 @@ void freeScreen(Screen screen)
 
 void displayScreen(const Screen screen)
 {
+    setCursorPos(0, 0);
+
     for (int y = 0; y < screen.height; y++) {
-        setCursorPos(0, y);
+		printf("\r\n");
         for (int x = 0; x < screen.width; x++) {
             printColoredChar(screen.data[y][x], activeColor);
             printf(" ");
         }
     }
-    updateScreen(); 
+
+    updateScreen();
 }
 
 void shiftScreenDown(Screen *screen)
