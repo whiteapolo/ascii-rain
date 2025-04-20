@@ -6,8 +6,8 @@
 #include <unistd.h>
 #include <string.h>
 
-#define CURSOR_IMPL
-#include "cursor.h"
+#define LIBZATAR_IMPL
+#include "libzatar.h"
 
 #include "config.h"
 #include "mat.h"
