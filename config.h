@@ -16,8 +16,9 @@ const char activeChars[] = {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"
     "abcdefghijklmnopqrstuvwxyz{|}~"
 };
+
 const int activeCharsLen = ARRAY_SIZE(activeChars) - 1;
 
-const char activeColor[] = Z_COLOR_GREEN;
+#define ACTIVE_COLOR Z_COLOR_GREEN
 
 #endif
