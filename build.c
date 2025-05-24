@@ -9,7 +9,7 @@ int build()
 {
     Z_Cmd cmd;
     z_cmd_init(&cmd);
-    z_cmd_append(&cmd, "clang", "main.c", "-o", TARGET);
+    z_cmd_append(&cmd, "cc", "main.c", "-o", TARGET);
     z_cmd_append(&cmd, "-Wextra", "-Wall", "-pedantic");
 
     return z_cmd_run_async(&cmd);

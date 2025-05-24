@@ -905,7 +905,7 @@ typedef struct {
 
 bool _z_should_rebuild(const char *target, ...);
 bool z_should_rebuild_va(const char *target, va_list ap);
-#define z_should_rebuild(target, ...) _z_should_rebuild(target, ##__VA_ARGS__, NULL)
+#define z_should_rebuild(target, ...) _z_should_rebuild(target, ##__VA_ARGS__, NULL) // TODO: fix va_args
 void z_rebuild_yourself(const char *src_pathname, char **argv);
 void z_cmd_init(Z_Cmd *cmd);
 #define z_cmd_append(cmd, ...) _z_cmd_append(cmd, __VA_ARGS__, NULL)
