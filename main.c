@@ -6,27 +6,19 @@
 #include <unistd.h>
 #include <string.h>
 
-#define LIBZATAR_IMPL
+#define LIBZATAR_IMPLEMENTATION
 #include "libzatar.h"
 
 #include "config.h"
-#include "mat.h"
 
-#define lambda(return_type, function_body) \
-    ({ return_type __fn__ function_body __fn__; })
+Z_MAT_DECLARE(Screen, char)
 
-typedef struct {
-    int width;
-    int height;
-    char **data;
-} Screen;
-
-void resetTermSettings();
+static Screen screen = {0};
 
 void die(const char *msg)
 {
-	perror(msg);
-	exit(EXIT_FAILURE);
+    perror(msg);
+    exit(EXIT_FAILURE);
 }
 
 char getInactiveChar()
@@ -56,7 +48,7 @@ bool isExitKey(int key)
 
 bool shouldExit()
 {
-    return isExitKey(readKey());
+    return isExitKey(z_read_key());
 }
 
 int sleepDeci(int deciSeconds)
@@ -66,110 +58,109 @@ int sleepDeci(int deciSeconds)
 
 void printColoredChar(char c, const char *color)
 {
-    printf("%s%c%s", color, c, C0);
+    printf("%s%c%s", color, c, Z_COLOR_RESET);
 }
 
-Screen createScreen()
+void initScreen()
 {
-    Screen screen;
+    int width;
+    int height;
 
-    if ((getScreenSize(&screen.width, &screen.height)) != Ok)
+    if ((z_get_screen_size(&width, &height)) == Z_Err) {
         die("failed to get screen size");
+    }
 
-    screen.width = (screen.width / 2);
-    screen.height += 1;
+    if (screen.ptr == NULL) {
+        Z_MAT_INIT(&screen, width / 2, height + 1);
+    } else {
+        Z_MAT_RESIZE(&screen, width / 2, height + 1);
+    }
 
-    screen.data = (char**)matAlloc(screen.width, screen.height, sizeof(char));
-    for (int y = 0; y < screen.height; y++)
-        for (int x = 0; x < screen.width; x++)
-            screen.data[y][x] = getInactiveChar();
 
-    return screen;
+    for (int y = 0; y < screen.y; y++) {
+        for (int x = 0; x < screen.x; x++) {
+            Z_MAT_AT(&screen, y, x) = getInactiveChar();
+        }
+    }
 }
 
-void freeScreen(Screen screen)
+void displayScreen()
 {
-    matFree((void**)screen.data, screen.height);
-}
+    z_set_cursor_pos(0, 0);
 
-void displayScreen(const Screen screen)
-{
-    setCursorPos(0, 0);
-
-    for (int y = 0; y < screen.height; y++) {
-		printf("\r\n");
-        for (int x = 0; x < screen.width; x++) {
-            printColoredChar(screen.data[y][x], activeColor);
+    for (int i = 0; i < screen.y; i++) {
+        printf("\r\n");
+        for (int j = 0; j < screen.x; j++) {
+            printColoredChar(Z_MAT_AT(&screen, i, j), activeColor);
             printf(" ");
         }
     }
 
-    updateScreen();
+    z_update_screen();
 }
 
-void shiftScreenDown(Screen *screen)
+void shiftScreenDown()
 {
-    for (int i = screen->height - 1; i > 0; i--) {
-        for (int j = 0; j < screen->width; j++) {
-            char *curr = &screen->data[i][j];
-            const bool isCurrActive = isActiveChar(screen->data[i][j]);
-            const bool isAboveActive = isActiveChar(screen->data[i - 1][j]);
+    for (int i = screen.y - 1; i > 0; i--) {
+        for (int j = 0; j < screen.x; j++) {
+            const bool isCurrActive = isActiveChar(Z_MAT_AT(&screen, i, j));
+            const bool isAboveActive = isActiveChar(Z_MAT_AT(&screen, i - 1, j));
 
-            if (!isCurrActive && isAboveActive) *curr = getActiveChar();
-            else if (!isAboveActive) *curr = getInactiveChar();
+            if (!isCurrActive && isAboveActive) {
+                Z_MAT_AT(&screen, i, j) = getActiveChar();
+            } else if (!isAboveActive) {
+                Z_MAT_AT(&screen, i, j) = getInactiveChar();
+            }
         }
     }
 }
 
-void generateTopRow(Screen *screen)
+void generateTopRow()
 {
-    for (int i = 0; i < screen->width; i++) {
-        char *curr = &screen->data[0][i];
+    for (int i = 0; i < screen.x; i++) {
         const bool continueStride = shouldContinueStride();
-        const bool isActiveBelow = isActiveChar(screen->data[1][i]);
-        *curr = (continueStride ^ isActiveBelow) ? getInactiveChar() : getActiveChar();
+        const bool isActiveBelow = isActiveChar(Z_MAT_AT(&screen, 1, i));
+        Z_MAT_AT(&screen, 0, i) = (continueStride ^ isActiveBelow) ? getInactiveChar() : getActiveChar();
     }
 }
 
-void updateScreenSize(Screen *screen)
+void updateScreenSize()
 {
-    freeScreen(*screen);
-    *screen = createScreen();
-    clearScreen();
+    initScreen();
+    z_clear_screen();
 }
 
 void resetTermSettings()
 {
-    showCursor();
-    disableRawMode();
-    exitAlternativeScreen();
+    z_show_cursor();
+    z_disable_raw_mode();
+    z_exit_alternative_screen();
 }
 
 void initTermSettings()
 {
     srand(time(NULL));
-    hideCursor();
-    enterAlternativeScreen();
-    enableRawMode(0, 0);
+    z_hide_cursor();
+    z_enter_alternative_screen();
+    z_enable_raw_mode(0, 0);
     atexit(resetTermSettings);
 }
 
 int main(void)
 {
     initTermSettings();
-    Screen screen = createScreen();
+    initScreen();
 
-    registerChangeInWindowSize(lambda(void, () {
-        updateScreenSize(&screen);
-    }));
+    z_register_change_in_window_size(updateScreenSize);
 
     while (!shouldExit()) {
-        shiftScreenDown(&screen);
-        generateTopRow(&screen);
-        displayScreen(screen);
+        shiftScreenDown();
+        generateTopRow();
+        displayScreen();
         sleepDeci(delayDeciSeconds);
     }
 
-    freeScreen(screen);
+    Z_MAT_FREE(&screen);
+
     return EXIT_SUCCESS;
 }

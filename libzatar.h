@@ -1,2198 +1,1875 @@
 /*
-           Libzatar
-
-	Libraries in this file:
-		- path
-		- cursor
-
-	Data Structures:
-		- Vector
-		- Stack
-		- Heap
-		- PriorityQueue
-		- List
-		- CircularList
-		- Queue
-		- AvlTree
-		- Map
-*/
-
-// TODO: circular list to camel case
-
+ *           --Libzatar--
+ *
+ *  #define LIBZATAR_IMPLEMENTATION
+ */
 #ifndef LIBZATAR_H
 #define LIBZATAR_H
 
-#include <stdint.h>
-#include <assert.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <dirent.h>
-#include <errno.h>
 #include <sys/types.h>
-
-typedef int8_t   i8;
-typedef int16_t  i16;
-typedef int32_t  i32;
-typedef int64_t  i64;
-
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-#define ADDRESS(element) (&((typeof(element)){element}))
-#define DUP(value) memdup(ADDRESS(value), sizeof(value))
-#define IN_RANGE(min, x, max) ((min) <= (x) && (x) <= (max))
-
-typedef enum {
-	Ok = 0,
-	Err = -1,
-} Result;
-
-/*********************************************
-
-
-                Vector - HEADER
-
-
-**********************************************/
-#define MIN_VECTOR_CAPACITY 0
-
-typedef struct {
-	void **data;
-	u64 size;
-	u64 capacity;
-} Vector;
-
-Vector *newVecWithCapacity(u64 initialCapacity);
-Vector *newVec();
-
-void *vecAt(const Vector *v, u64 i);
-u64 vecSize(const Vector *v);
-bool vecIsEmpty(const Vector *v);
-
-void vecAdd(Vector *v, void *data);
-void *vecRemoveLast(Vector *v);
-void vecInsertAt(Vector *v, u64 i, void *data);
-void *vecRemoveAt(Vector *v, u64 i);
-
-void *vecReplace(Vector *v, u64 i, void *data);
-void vecSwap(Vector *v, u64 i, u64 j);
-void vecRemoveRange(Vector *v, i64 start, i64 end, i64 step, void freeData(void *));
-void vecAddVec(Vector *dst, Vector *src);
-void vecAddVecAt(Vector *dest, u64 i, Vector *src);
-
-Vector *vecClone(const Vector *v, void *dupData(const void *));
-Vector *vecCloneRange(const Vector *v, i64 start, i64 end, i64 step, void *dupData(const void *));
-void vecShrinkToFit(Vector *v);
-
-void vecClear(Vector *v, void freeData(void *));
-void vecFree(Vector *v, void freeData(void *));
-
-void vecSort(Vector *v, int cmp(const void *, const void *));
-void vecReverse(Vector *v);
-void vecShuffle(Vector *v);
-void vecReduce(Vector *v, bool shouldRemove(const void *, i64 i), void freeData(void *));
-void vecMap(Vector *v, void *transform(const void *));
-void vecMapRange(Vector *v, i64 start, i64 end, i64 step, void *transform(const void *));
-void vecForEach(const Vector *v, void action(const void *));
-void vecForEachRange(const Vector *v, i64 start, i64 end, i64 step, void action(const void *));
-void vecPrint(const Vector *v, void printData(const void *));
-
-/*********************************************
-
-
-                Stack - HEADER
-
-
-**********************************************/
-
-typedef Vector Stack;
-
-#define MIN_STACK_CAPACITY 0
-
-Stack *newStack();
-Stack *newStackWithCapacity(const u64 capacity);
-void stackPush(Stack *s, void *data);
-void *stackPop(Stack *s);
-const void *stackTop(const Stack *s);
-u64 stackSize(const Stack *s);
-bool stackIsEmpty(const Stack *s);
-void stackShrinkToFit(Stack *s);
-void stackClear(Stack *s, void freeData(void *));
-void stackFree(Stack *s, void freeData(void *));
-void stackPrint(const Vector *v, void printData(const void *));
-
-/*********************************************
-
-
-                Heap - HEADER
-
-
-**********************************************/
-
-#define MIN_HEAP_CAPACITY 0
-
-typedef struct {
-	void **vec;
-	u64 size;
-	u64 capacity;
-	int (*cmp)(const void *, const void *);
-} Heap;
-
-Heap *newHeap(int cmp(const void *, const void *));
-Heap *newHeapWithCapacity(int cmp(const void *, const void *), const u64 initialCapacity);
-void heapPush(Heap *h, void *data);
-const void *heapPeek(const Heap *h);
-void *heapPop(Heap *h);
-u64 heapSize(const Heap *h);
-bool heapIsEmpty(const Heap *h);
-void heapShrinkToFit(Heap *h);
-void heapClear(Heap *h, void freeData(void *));
-void heapFree(Heap *h, void freeData(void *));
-
-/*********************************************
-
-
-            Priority Queue - HEADER
-
-
-**********************************************/
-
-#define MIN_PRIORITY_QUEUE_CAPACITY 16
-
-typedef Heap PriorityQueue;
-
-PriorityQueue *newPriorityQueue(int cmp(const void *, const void *));
-PriorityQueue *newPriorityQueueWithCapacity(int cmp(const void *, const void *), const u64 initialCapacity);
-void priorityQueuePush(PriorityQueue *q, void *data);
-void *priorityQueuePop(PriorityQueue *q);
-const void *priorityQueuePeek(const PriorityQueue *q);
-u64 priorityQueueGetSize(const PriorityQueue *q);
-bool priorityQueueIsEmpty(const PriorityQueue *q);
-void priorityQueueShrinkToFit(PriorityQueue *q);
-void priorityQueueClear(PriorityQueue *q, void freeData(void *));
-void priorityQueueFree(PriorityQueue *q, void freeData(void *));
-
-
-/*********************************************
-
-
-                List - HEADER
-
-
-**********************************************/
-
-typedef struct List{
-	struct List *next;
-	void *data;
-} List;
-
-List *newList();
-void listPush(List **m, void *data);
-void *listPop(List **m);
-void listInsertAfter(List *l, void *data);
-void *listRemoveAfter(List *l);
-void listFree(List *m, void freeData(void *));
-void listInsertEnd(List *l, void *data);
-void listPrint(const List *l, void printData(const void*));
-const List *listGetLast(const List *l);
-void listReverse(List **lst);
-
-/*********************************************
-
-
-            Circular list - HEADER
-
-
-**********************************************/
-
-typedef struct circularList {
-	struct circularList *next;
-	void *data;
-} circularList;
-
-circularList *newCircularList();
-void circularListPush(circularList **cl, void *data);
-void *circularListPop(circularList **cl);
-void circularListInsertAfter(circularList *cl, void *data);
-void circularListInsertLast(circularList **cl, void *data);
-void *circularListRemoveAfter(circularList *cl);
-void circularListFree(circularList *cl, void freeData(void *));
-void circularListPrint(circularList *cl, void printData(const void *));
-
-/*********************************************
-
-
-                Queue - HEADER
-
-
-**********************************************/
-
-typedef struct {
-	circularList *cl;
-	u64 size;
-} Queue;
-
-Queue *newQueue();
-void queuePush(Queue *q, void *data);
-void *queuePop(Queue *q);
-void *queuePeek(Queue *q);
-bool queueIsEmpty(const Queue *q);
-u64 queueSize(const Queue *q);
-void queuePrint(const Queue *q, void printData(const void *));
-void queueClear(Queue *q, void freeData(void *));
-void queueFree(Queue *q, void freeData(void *));
-circularList *queueToCircularList(Queue *q);
-
-/*********************************************
-
-
-                AvlTree - HEADER
-
-
-**********************************************/
-
-typedef struct avlNode {
-	struct avlNode *left;
-	struct avlNode *right;
-	void *key;
-	void *data;
-	int height;
-} avlNode;
-
-avlNode *newAvlNode(void *key, void *data);
-avlNode *avlGetMin(avlNode *root);
-avlNode *avlGetMax(avlNode *root);
-const avlNode *avlFindNode(const avlNode *root, const void *key, int cmpKeys(const void *,const void *));
-bool avlIsExists(const avlNode *root, const void *key, int cmpKeys(const void *,const void *));
-void *avlFind(const avlNode *root, const void *key, int cmpKeys(const void *,const void *));
-void avlInsert(avlNode **root, void *key, void *data, int cmpKeys(const void *,const void *));
-void avlRemove(avlNode **root, const void *key, int cmpKeys(const void *,const void *), void freeKey(void *), void freeData(void *));
-void avlUpdate(avlNode *root, const void *key, int cmpKeys(const void *,const void *), void freeData(void *), void *newData);
-void avlOrderTraverse(const avlNode *root, void action(const void *key, const void *data, void *arg), void *arg);
-void avlPrint(const avlNode *root, void print(const void *key, const void *data, void *arg), void *arg, int padding);
-void avlFree(avlNode *root, void freeKey(void *), void freeData(void *));
-
-/*********************************************
-
-
-                Map - HEADER
-
-
-**********************************************/
-
-typedef struct {
-	avlNode *root;
-	int (*cmpKeys)(const void *, const void *);
-} Map;
-
-Map *newMap(int cmpKeys(const void *, const void *));
-void mapInsert(Map *m, void *key, void *data);
-void *mapFind(const Map *m, const void *key);
-bool mapIsExists(const Map *m, const void *key);
-void mapRemove(Map *m, const void *key, void freeKey(void *), void freeData(void *));
-void mapUpdate(Map *m, const void *key, void freeData(void *), void *newData);
-void mapOrderTraverse(const Map *m, void action(const void *key, const void *data, void *arg), void *arg);
-void mapFree(Map *m, void freeKey(void *), void freeData(void *));
-bool mapIsEmpty(const Map *m);
-
-
-/*********************************************
-
-
-                String - HEADER
-
-
-**********************************************/
-
-u64 getFileSize(FILE *fp);
-i32 getFmtSize(const char *fmt, ...);
-i32 getFmtSizeVa(const char *fmt, va_list ap);
-void *memdup(const void *mem, const size_t size);
-void swap(void *a, void *b, const size_t size);
-int zatarMax(int a, int b);
-int zatarMin(int a, int b);
-int zatarMin3(int a, int b, int c);
-int zatarMax3(int a, int b, int c);
-
-/*********************************************
-
-
-                Cursor - HEADER
-
-
-**********************************************/
-#define CTRL_KEY(k) ((k) & 0x1f)
-
-#define C0  "\033[0m"     /*  RESET        */
-
-#define C1  "\033[0;31m"  /*  RED          */
-#define C2  "\033[0;32m"  /*  GREEN        */
-#define C3  "\033[0;33m"  /*  YELLOW       */
-#define C4  "\033[0;34m"  /*  BLUE         */
-#define C5  "\033[0;035m" /*  MAGENTA      */
-#define C6  "\033[0;36m"  /*  CYAN         */
-#define C7  "\033[0;37m"  /*  WHITE        */
-#define C8  "\033[0;90m"  /*  GRAY         */
-
-#define B1  "\033[1;91m"  /*  BOLD RED     */
-#define B2  "\033[1;92m"  /*  BOLD GREEN   */
-#define B3  "\033[1;93m"  /*  BOLD YELLOW  */
-#define B4  "\033[1;94m"  /*  BOLD BLUE    */
-#define B5  "\033[1;95m"  /*  BOLD MAGENTA */
-#define B6  "\033[1;96m"  /*  BOLD CYAN    */
-#define B7  "\033[1;97m"  /*  BOLD WHITE   */
-#define B8  "\033[1;90m"  /*  BOLD GRAY    */
-
-enum {
-    EMPTY_KEY = 999,
-
-	ARROW_LEFT = 1000,
-	ARROW_RIGHT = 1001,
-	ARROW_UP = 1002,
-	ARROW_DOWN = 1003,
-
-	PAGE_UP = 1007,
-	PAGE_DOWN = 1008,
-
-	DELETE = 1004,
-	HOME = 1005,
-	END = 1006,
-};
-
-typedef enum {
-	BLOCK_STEADY = 0,
-	BLOCK_BLINKING = 1,
-	UNDERLINE_BLINKING = 3,
-	UNDERLINE_STEADY = 4,
-	BEAM_STEADY = 6,
-	BEAM_BLINKING = 5,
-} CURSOR_STYLE;
-
-Result enableRawMode(int vminKeys, int vtime);
-Result disableRawMode();
-
-void disableLineWrap();
-void enableLineWrap();
-
-void hideCursor();
-void showCursor();
-
-void setCursorStyle(CURSOR_STYLE style);
-
-Result getCursorPos(int *x, int *y);
-void setCursorPos(int x, int y);
-
-void setCursorX(int x);
-
-void cursorUp(int n);
-void cursorDown(int n);
-void cursorRight(int n);
-void cursorLeft(int n);
-
-// unsupported on some terminals
-void saveCursorPos();
-void restoreCursorPos();
-
-void enterAlternativeScreen();
-void exitAlternativeScreen();
-
-void clearLine();
-void clearScreen();
-
-void updateScreen();
-
-Result getScreenSizeByCursor(int *width, int *height);
-Result getScreenSizeByIoctl(int *width, int *height);
-Result getScreenSize(int *width, int *height);
-
-Result registerChangeInWindowSize(void funciton(int));
-
-Result enableFullBuffering(FILE *fp);
-
-int waitForByte();
-int readEscapeKey();
-int readKey();
-
-
-/*********************************************
-
-
-                 Path - HEADER
-
-
-**********************************************/
-
-typedef enum {
-	Read = 0,
-	Write = 1,
-} PipeMode;
-
-const char *getPathExtention(const char *path);
-const char *getHomePath();
-char *expandPath(const char *path);
-void compressPath(char *path);
-bool isExtentionEqual(const char *path, const char *extention);
-
-int dirTraverse(const char *dir, bool action(const char *));
-int traverseFile(const char *fileName, int bufSize, bool action(char[bufSize]));
-
-bool isDir(const char *path);
-bool isRegularFile(const char *fileName);
-bool isPathExists(const char *path);
-
-int echoFileWrite(const char *fileName, const char *fmt, ...);
-int echoFileAppend(const char *fileName, const char *fmt, ...);
-int readFile(const char *fileName, const char *fmt, ...);
-int redirectFd(int srcFd, const char *destFileName);
-int popen2(char *path, char *argv[], FILE *ppipe[2]);
-
-void getFullFileName(const char *dirName, const char *fileName, char *dest, int destLen);
-
-int nextInDir(DIR *dir, const char *dirName, char *destFileName, int destLen);
-
-int getFmtSize(const char *fmt, ...);
-int getFmtSizeVa(const char *fmt, va_list ap);
-size_t getFileSize(FILE *fp);
-
-/*============================================
-
-
-                -End-Headers-
-
-
-=============================================*/
-#ifdef LIBZATAR_IMPL
-
-/*********************************************
-
-
-             Vector IMPLEMENTATION
-
-
-**********************************************/
-typedef struct {
-	i64 start;
-	i64 step;
-	i64 end;
-	i64 i;
-} VecIter;
-
-VecIter newVecIter(const Vector *v, i64 start, i64 end, i64 step)
-{
-	assert(step != 0);
-
-	VecIter vi = {
-		.start = start,
-		.end = end,
-		.step = step,
-	};
-
-	// wrap negative values to the end of the array
-	if (vi.start < 0)
-		vi.start += vecSize(v);
-	if (vi.end < 0)
-		vi.end += vecSize(v);
-	return vi;
-}
-
-i64 VecIterBegin(VecIter *vi)
-{
-	vi->i = vi->start;
-	return vi->i;
-}
-
-i64 VecIterNext(VecIter *vi)
-{
-	vi->i += vi->step;
-	return vi->i;
-}
-
-bool VecIterIsEnd(const VecIter *vi)
-{
-	if (vi->step > 0 && vi->i > vi->end)
-		return true;
-	if (vi->step < 0 && vi->i < vi->end)
-		return true;
-	return false;
-}
-
-Vector *newVecWithCapacity(u64 initialCapacity)
-{
-	Vector *v = malloc(sizeof(Vector));
-	v->size = 0;
-	v->capacity = initialCapacity;
-	v->data = malloc(sizeof(void *) * initialCapacity);
-
-	return v;
-}
-
-Vector *newVec()
-{
-	return newVecWithCapacity(MIN_VECTOR_CAPACITY);
-}
-
-void *vecAt(const Vector *v, u64 i)
-{
-	assert(i < v->size);
-
-	return v->data[i];
-}
-
-void vecAdd(Vector *v, void *data)
-{
-	v->size++;
-
-	if (v->size > v->capacity) {
-		v->capacity *= 2;
-		v->data = realloc(v->data, sizeof(void *) * v->capacity);
-	}
-
-	v->data[v->size - 1] = data;
-}
-
-void *vecRemoveLast(Vector *v)
-{
-	return v->data[--v->size];
-}
-
-void vecInsertAt(Vector *v, u64 i, void *data)
-{
-	assert(i <= v->size);
-	v->size++;
-
-	if (v->size > v->capacity) {
-		v->capacity *= 2;
-		v->data = realloc(v->data, sizeof(void *) * v->capacity);
-	}
-
-	memmove(&v->data[i+1], &v->data[i], sizeof(void *) * (v->size - i - 1));
-	v->data[i] = data;
-}
-
-void *vecRemoveAt(Vector *v, u64 i)
-{
-	assert(i < v->size);
-	void *dataToRemove = v->data[i];
-	memmove(&v->data[i], &v->data[i+1], sizeof(void *) * (v->size - i - 1));
-	v->size--;
-
-	return dataToRemove;
-}
-
-void *vecReplace(Vector *v, u64 i, void *data)
-{
-	void *tmp = v->data[i];
-	v->data[i] = data;
-	return tmp;
-}
-
-void vecSwap(Vector *v, u64 i, u64 j)
-{
-	swap(&v->data[i], &v->data[j], sizeof(void *));
-}
-
-void vecRemoveRange(Vector *v, i64 start, i64 end, i64 step, void freeData(void *))
-{
-	u8 tmpPtr;
-	VecIter vi = newVecIter(v, start, end, step);
-
-	for (i64 i = VecIterBegin(&vi); VecIterIsEnd(&vi); i = VecIterNext(&vi)) {
-		if (freeData)
-			freeData(vecReplace(v, i, &tmpPtr));
-		else
-			vecReplace(v, i, &tmpPtr);
-	}
-
-	Vector *tmp = newVecWithCapacity(vecSize(v));
-	for (u64 i = 0; i < vecSize(v); i++)
-		vecAdd(tmp, (void *)vecAt(v, i));
-	vecFree(v, NULL);
-	*v = *tmp;
-}
-
-void vecAddVec(Vector *dst, Vector *src)
-{
-	for (u64 i = 0; i < vecSize(src); i++)
-		vecAdd(dst, (void *)vecAt(src, i));
-	vecFree(src, NULL);
-}
-
-void vecAddVecAt(Vector *dest, u64 i, Vector *src)
-{
-	u64 oldDestSize = dest->size;
-	dest->size += src->size;
-
-	if (dest->size > dest->capacity) {
-		dest->capacity = dest->size * 2;
-		dest->data = realloc(dest->data, sizeof(void *) * dest->capacity);
-	}
-
-	memmove(&dest->data[i + src->size], &dest->data[i], sizeof(void *) * (oldDestSize - i));
-	memcpy(&dest->data[i], &src->data[0], src->size);
-	vecFree(src, NULL);
-}
-
-u64 vecSize(const Vector *v)
-{
-	return v->size;
-}
-
-bool vecIsEmpty(const Vector *v)
-{
-	return vecSize(v) == 0;
-}
-
-Vector *vecClone(const Vector *v, void *dupData(const void *))
-{
-	Vector *new = newVecWithCapacity(vecSize(v));
-	for (u64 i = 0; i < vecSize(v); i++)
-		vecAdd(new, dupData(vecAt(v, i)));
-	return new;
-}
-
-Vector *vecCloneRange(const Vector *v, i64 start, i64 end, i64 step, void *dupData(const void *))
-{
-	Vector *clone = newVecWithCapacity(vecSize(v));
-	VecIter vi = newVecIter(v, start, end, step);
-
-	for (i64 i = VecIterBegin(&vi); VecIterIsEnd(&vi); i = VecIterNext(&vi))
-		vecAdd(clone, dupData(vecAt(v, i)));
-
-	return clone;
-}
-
-void vecShrinkToFit(Vector *v)
-{
-	v->capacity = v->size;
-	v->data = realloc(v->data, sizeof(void *) * v->capacity);
-}
-
-void vecClear(Vector *v, void freeData(void *))
-{
-	if (freeData)
-		for (u64 i = 0; i < vecSize(v); i++)
-			freeData((void *)vecAt(v, i));
-	v->size = 0;
-}
-
-void vecFree(Vector *v, void freeData(void *))
-{
-	if (freeData)
-		for (u64 i = 0; i < vecSize(v); i++)
-			freeData((void *)vecAt(v, i));
-
-	free(v->data);
-	free(v);
-}
-
-void vecSort(Vector *v, int cmp(const void *, const void *))
-{
-	qsort(v->data, v->size, sizeof(void *), cmp);
-}
-
-void vecReverse(Vector *v)
-{
-	u64 start = 0;
-	u64 end = vecSize(v) - 1;
-
-	while (start < end)
-		vecSwap(v, start++, end--);
-}
-
-void vecShuffle(Vector *v)
-{
-	for (u64 i = 0; i < vecSize(v); i++) {
-		i64 j = rand() % vecSize(v);
-		vecSwap(v, i, j);
-	}
-}
-
-void vecReduce(Vector *v, bool shouldRemove(const void *, i64 i), void freeData(void *))
-{
-	Vector *tmp = newVecWithCapacity(v->capacity);
-	for (u64 i = 0; i < vecSize(v); i++) {
-		void *currData = (void *)vecAt(v, i);
-		if (!shouldRemove(currData, i))
-			vecAdd(tmp, currData);
-		else if (freeData)
-			freeData(currData);
-	}
-	vecFree(v, NULL);
-	*v = *tmp;
-}
-
-void vecMap(Vector *v, void *transform(const void *))
-{
-	for (u64 i = 0; i < vecSize(v); i++)
-		vecReplace(v, i, transform(vecAt(v, i)));
-}
-
-void vecMapRange(Vector *v, i64 start, i64 end, i64 step, void *transform(const void *))
-{
-	VecIter vi = newVecIter(v, start, end, step);
-	for (i64 i = VecIterBegin(&vi); VecIterIsEnd(&vi); i = VecIterNext(&vi))
-		vecReplace(v, i, transform(vecAt(v, i)));
-}
-
-void vecForEach(const Vector *v, void action(const void *))
-{
-	for (u64 i = 0; i < vecSize(v); i++)
-		action(vecAt(v, i));
-}
-
-void vecForEachRange(const Vector *v, i64 start, i64 end, i64 step, void action(const void *))
-{
-	VecIter vi = newVecIter(v, start, end, step);
-	for (i64 i = VecIterBegin(&vi); VecIterIsEnd(&vi); i = VecIterNext(&vi))
-		action(vecAt(v, i));
-}
-
-void vecPrint(const Vector *v, void printData(const void *))
-{
-	if (v->size == 0) {
-		printf("[]\n");
-		return;
-	}
-
-	printf("[ ");
-
-	for (u64 i = 0; i < v->size - 1; i++) {
-		printData(v->data[i]);
-		printf(", ");
-	}
-
-	printData(v->data[v->size - 1]);
-
-
-	printf(" ]\n");
-}
-
-/*********************************************
-
-
-              Stack IMPLEMENTATION
-
-
-**********************************************/
-
-Stack *newStack()
-{
-	return newStackWithCapacity(MIN_STACK_CAPACITY);
-}
-
-Stack *newStackWithCapacity(u64 capacity)
-{
-	return newVecWithCapacity(capacity);
-}
-
-void stackPush(Stack *s, void *data)
-{
-	vecAdd(s, data);
-}
-
-void *stackPop(Stack *s)
-{
-	return vecRemoveLast(s);
-}
-
-const void *stackTop(const Stack *s)
-{
-	return vecAt(s, vecSize(s) - 1);
-}
-
-u64 stackSize(const Stack *s)
-{
-	return vecSize(s);
-}
-
-bool stackIsEmpty(const Stack *s)
-{
-	return vecIsEmpty(s);
-}
-
-void stackShrinkToFit(Stack *s)
-{
-	vecShrinkToFit(s);
-}
-
-void stackClear(Stack *s, void freeData(void *))
-{
-	vecClear(s, freeData);
-}
-
-void stackFree(Stack *s, void freeData(void *))
-{
-	vecFree(s, freeData);
-}
-
-void stackPrint(const Stack *s, void printData(const void *))
-{
-	vecPrint(s, printData);
-}
-
-/*********************************************
-
-
-			 Heap IMPLEMENTATION
-
-
-**********************************************/
-
-u64 parent(u64 i);
-u64 right(u64 i);
-u64 left(u64 i);
-void heapifyUp(Heap *h, u64 i);
-void heapifyDown(Heap *h, u64 i);
-
-Heap *newHeapWithCapacity(int cmp(const void *, const void *), const u64 initialCapacity)
-{
-	Heap *h = malloc(sizeof(Heap));
-	h->size = 0;
-	h->capacity = initialCapacity;
-	h->vec = malloc(sizeof(void*) * h->capacity);
-	h->cmp = cmp;
-
-	return h;
-}
-
-Heap *newHeap(int cmp(const void *, const void *))
-{
-	return newHeapWithCapacity(cmp, MIN_HEAP_CAPACITY);
-}
-
-u64 parent(u64 i)
-{
-	return i / 2;
-}
-
-u64 right(u64 i)
-{
-	return (i * 2) + 2;
-}
-
-u64 left(u64 i)
-{
-	return (i * 2) + 1;
-}
-
-void heapifyUp(Heap *h, u64 i)
-{
-	if (i == 0) {
-		return;
-	}
-
-	if (h->cmp(h->vec[parent(i)], h->vec[i]) > 0) {
-		swap(&h->vec[i], &h->vec[parent(i)], sizeof(void*));
-		heapifyUp(h, parent(i));
-	}
-}
-
-void heapifyDown(Heap *h, u64 i)
-{
-	u64 l = left(i);
-	u64 r = right(i);
-
-	u64 largest = i;
-
-	if (l < h->size && h->cmp(h->vec[i], h->vec[l]) > 0) {
-		largest = l;
-	}
-
-	if (r < h->size && h->cmp(h->vec[largest], h->vec[r]) > 0) {
-		largest = r;
-	}
-
-	if (largest != i) {
-		swap(&h->vec[i], &h->vec[largest], sizeof(void*));
-		heapifyDown(h, largest);
-	}
-}
-
-void heapPush(Heap *h, void *data)
-{
-	h->size++;
-
-	if (h->size > h->capacity) {
-		h->capacity *= 2;
-		h->vec = realloc(h->vec, sizeof(void*) * h->capacity);
-	}
-
-	h->vec[h->size - 1] = data;
-	heapifyUp(h, h->size - 1);
-}
-
-const void *heapPeek(const Heap *h)
-{
-	return h->vec[0];
-}
-
-void *heapPop(Heap *h)
-{
-	void *ret = h->vec[0];
-	h->vec[0] = h->vec[--h->size];
-	heapifyDown(h, 0);
-
-	return ret;
-}
-
-u64 heapSize(const Heap *h)
-{
-	return h->size;
-}
-
-bool heapIsEmpty(const Heap *h)
-{
-	return heapSize(h) == 0;
-}
-
-void heapShrinkToFit(Heap *h)
-{
-	h->capacity = h->size;
-	h->vec = realloc(h->vec, sizeof(void*) * h->capacity);
-}
-
-void heapClear(Heap *h, void freeData(void *))
-{
-	if (freeData) {
-		for (u64 i = 0; i < h->size; i++) {
-			freeData(h->vec[i]);
-		}
-	}
-
-	h->size = 0;
-}
-
-void heapFree(Heap *h, void freeData(void *))
-{
-	heapClear(h, freeData);
-	free(h->vec);
-	free(h);
-}
-
-/*********************************************
-
-
-			 Priority Queue IMPLEMENTATION
-
-
-**********************************************/
-
-PriorityQueue *newPriorityQueueWithCapacity(int cmp(const void *, const void *), const u64 initialCapacity)
-{
-	return newHeapWithCapacity(cmp, initialCapacity);
-}
-
-PriorityQueue *newPriorityQueue(int cmp(const void *, const void *))
-{
-	return newHeapWithCapacity(cmp, MIN_PRIORITY_QUEUE_CAPACITY);
-}
-
-void priorityQueuePush(PriorityQueue *q, void *data)
-{
-	heapPush(q, data);
-}
-
-void *priorityQueuePop(PriorityQueue *q)
-{
-	return heapPop(q);
-}
-
-const void *priorityQueuePeek(const PriorityQueue *q)
-{
-	return heapPeek(q);
-}
-
-u64 priorityQueueGetSize(const PriorityQueue *q)
-{
-	return heapSize(q);
-}
-
-bool priorityQueueIsEmpty(const PriorityQueue *q)
-{
-	return heapIsEmpty(q);
-}
-
-void priorityQueueShrinkToFit(PriorityQueue *q)
-{
-	heapShrinkToFit(q);
-}
-
-void priorityQueueClear(PriorityQueue *q, void freeData(void *))
-{
-	heapClear(q, freeData);
-}
-
-void priorityQueueFree(PriorityQueue *q, void freeData(void *))
-{
-	heapFree(q, freeData);
-}
-
-
-/*********************************************
-
-
-			 List IMPLEMENTATION
-
-
-**********************************************/
-
-List *newList()
-{
-	return NULL;
-}
-
-void listPush(List **m, void *data)
-{
-	List *n = malloc(sizeof(List));
-	n->next = *m;
-	n->data = data;
-	*m = n;
-}
-
-void *listPop(List **m)
-{
-	void *data = (*m)->data;
-	List *tmp = *m;
-	*m = (*m)->next;
-	free(tmp);
-	return data;
-}
-
-void listInsertAfter(List *l, void *data)
-{
-	List *n = malloc(sizeof(List));
-	n->next = l->next;
-	n->data = data;
-	l->next = n;
-}
-
-void *listRemoveAfter(List *l)
-{
-	List *tmp = l->next;
-	void *data = tmp->data;
-	l->next = l->next->next;
-	free(tmp);
-
-	return data;
-}
-
-void listFree(List *m, void freeData(void *))
-{
-	while (m) {
-		void *tmp = listPop(&m);
-		if (freeData) {
-			freeData(tmp);
-		}
-	}
-}
-
-void listInsertEnd(List *l, void *data)
-{
-	listInsertAfter((List *)listGetLast(l), data);
-}
-
-void listPrint(const List *l, void printData(const void *))
-{
-	while (l) {
-		printData(l->data);
-		l = l->next;
-	}
-}
-
-const List *listGetLast(const List *l)
-{
-	while (l->next) {
-		l =  l->next;
-	}
-
-	return l;
-}
-
-void listReverse(List **lst)
-{
-	List *right = *lst;
-	List *left = *lst;
-
-	while (right->next) {
-		void *tmp = listRemoveAfter(right);
-		listPush(&left, tmp);
-	}
-
-	*lst = left;
-}
-
-
-/*********************************************
-
-
-         Circular List IMPLEMENTATION
-
-
-**********************************************/
-circularList *newCircularList()
-{
-	return NULL;
-}
-
-void circularListPush(circularList **cl, void *data)
-{
-	circularList *n = malloc(sizeof(circularList));
-	n->data = data;
-	if (*cl == NULL) {
-		n->next = n;
-		*cl = n;
-	} else if ((*cl)->next == (*cl)) {
-		n->next = *cl;
-		(*cl)->next = n;
-	} else {
-		n->next = (*cl)->next;
-		(*cl)->next = n;
-	}
-}
-
-void *circularListPop(circularList **cl)
-{
-	circularList *toRemove = (*cl)->next;
-	void *data = toRemove->data;
-
-	if (*cl == toRemove) {
-
-		*cl = NULL;
-	} else {
-		(*cl)->next = (*cl)->next->next;
-	}
-
-	free(toRemove);
-
-	return data;
-}
-
-void circularListInsertAfter(circularList *cl, void *data)
-{
-	circularList *n = malloc(sizeof(circularList));
-	n->data = data;
-	n->next = cl->next;
-	cl->next = n;
-}
-
-void *circularListRemoveAfter(circularList *cl)
-{
-	circularList *toRemove = cl->next;
-	cl->next = cl->next->next;
-	void *tmp = toRemove->data;
-	free(toRemove);
-
-	return tmp;
-}
-
-void circularListInsertLast(circularList **cl, void *data)
-{
-	circularList *n = malloc(sizeof(circularList));
-	n->data = data;
-
-	if (*cl == NULL) {
-		n->next = n;
-	} else if ((*cl)->next == (*cl)) {
-		n->next = *cl;
-		(*cl)->next = n;
-	} else {
-		n->next = (*cl)->next;
-		(*cl)->next = n;
-	}
-
-	*cl = n;
-}
-
-void circularListFree(circularList *cl, void freeData(void *))
-{
-	if (freeData) {
-		while (cl) {
-			freeData(circularListPop(&cl));
-		}
-	} else {
-		while (cl) {
-			circularListPop(&cl);
-		}
-	}
-}
-
-void circularListPrint(circularList *cl, void printData(const void *))
-{
-	if (cl == NULL) {
-		printf("{}\n");
-		return;
-	}
-
-	printf("{ ");
-
-	for (circularList *curr = cl->next; curr != cl; curr = curr->next) {
-		printData(curr->data);
-		printf(", ");
-	}
-
-	printData(cl->data);
-
-	printf(" }\n");
-}
-
-/*********************************************
-
-
-			  Queue IMPLEMENTATION
-
-
-**********************************************/
-
-Queue *newQueue()
-{
-	Queue *q = malloc(sizeof(Queue));
-	q->size = 0;
-	q->cl = NULL;
-
-	return q;
-}
-
-void queuePush(Queue *q, void *data)
-{
-	q->size++;
-	circularListInsertLast(&q->cl, data);
-}
-
-void *queuePop(Queue *q)
-{
-	q->size--;
-	return circularListPop(&q->cl);
-}
-
-void *queuePeek(Queue *q)
-{
-	return q->cl->next->data;
-}
-
-bool queueIsEmpty(const Queue *q)
-{
-	return q->size == 0;
-}
-
-u64 queueSize(const Queue *q)
-{
-	return q->size;
-}
-
-void queuePrint(const Queue *q, void printData(const void *))
-{
-	circularListPrint(q->cl, printData);
-}
-
-void queueClear(Queue *q, void freeData(void *))
-{
-	circularListFree(q->cl, freeData);
-	q->size = 0;
-	q->cl = NULL;
-}
-
-void queueFree(Queue *q, void freeData(void *))
-{
-	circularListFree(q->cl, freeData);
-	free(q);
-}
-
-circularList *queueToCircularList(Queue *q)
-{
-	return q->cl;
-}
-
-/*********************************************
-
-
-             AvlTree IMPLEMENTATION
-
-
-**********************************************/
-
-avlNode *newAvlNode(void *key, void *data)
-{
-	avlNode *n = malloc(sizeof(avlNode));
-	n->key = key;
-	n->data = data;
-	n->height = 1;
-	n->left = NULL;
-	n->right = NULL;
-	return n;
-}
-
-int getHeight(const avlNode *node)
-{
-	if (node == NULL)
-		return 0;
-	return node->height;
-}
-
-void updateHeight(avlNode *node)
-{
-	node->height = 1 + zatarMax(getHeight(node->right), getHeight(node->left));
-}
-
-int getBalanceFactor(const avlNode *node)
-{
-	if (node == NULL)
-		return 0;
-	return getHeight(node->left) - getHeight(node->right);
-}
-
-avlNode *avlGetMin(avlNode *root)
-{
-	while (root->left != NULL)
-		root = root->left;
-	return root;
-}
-
-avlNode *avlGetMax(avlNode *root)
-{
-	while (root->right != NULL)
-		root = root->right;
-	return root;
-}
-
-void leftRotate(avlNode **root)
-{
-	avlNode *newRoot = (*root)->right;
-	avlNode *tmp = newRoot->left;
-
-	newRoot->left = *root;
-	(*root)->right = tmp;
-
-	updateHeight(newRoot->left);
-	updateHeight(newRoot);
-
-	*root = newRoot;
-}
-
-void rightRotate(avlNode **root)
-{
-	avlNode *newRoot = (*root)->left;
-	avlNode *tmp = newRoot->right;
-
-	newRoot->right = *root;
-	(*root)->left = tmp;
-
-	updateHeight(newRoot->right);
-	updateHeight(newRoot);
-
-	*root = newRoot;
-}
-
-void leftRightRotate(avlNode **root)
-{
-	leftRotate(&(*root)->left);
-	rightRotate(root);
-}
-
-void rightLeftRotate(avlNode **root)
-{
-	rightRotate(&(*root)->right);
-	leftRotate(root);
-}
-
-const avlNode *avlFindNode(const avlNode *root, const void *key, int cmpKeys(const void *,const void *))
-{
-	int cmpRes;
-	while (root && (cmpRes = cmpKeys(key, root->key))) {
-		if (cmpRes > 0)
-			root = root->right;
-		else
-			root = root->left;
-	}
-	return root;
-}
-
-bool avlIsExists(const avlNode *root, const void *key, int cmpKeys(const void *,const void *))
-{
-	return avlFindNode(root, key, cmpKeys) != NULL;
-}
-
-void *avlFind(const avlNode *root, const void *key, int cmpKeys(const void *,const void *))
-{
-	const avlNode *node = avlFindNode(root, key, cmpKeys);
-	if (node != NULL)
-		return node->data;
-	return NULL;
-}
-
-void avlInsert(avlNode **root, void *key, void *data, int cmpKeys(const void *,const void *))
-{
-	if (*root == NULL) {
-		*root = newAvlNode(key, data);
-		return;
-	} else if (cmpKeys(key, (*root)->key) > 0) {
-		avlInsert(&(*root)->right, key, data, cmpKeys);
-	} else {
-		avlInsert(&(*root)->left, key, data, cmpKeys);
-	}
-
-	updateHeight(*root);
-	int bf = getBalanceFactor(*root);
-
-	if (bf > 1 && cmpKeys(key, (*root)->left->key) < 0)
-		rightRotate(root);
-	else if (bf < -1 && cmpKeys(key, (*root)->right->key) > 0)
-		leftRotate(root);
-	else if (bf > 1 && cmpKeys(key, (*root)->left->key) > 0)
-		leftRightRotate(root);
-	else if (bf < -1 && cmpKeys(key, (*root)->right->key)< 0)
-		rightLeftRotate(root);
-}
-
-void avlRemove(avlNode **root, const void *key, int (*cmpKeys)(const void *,const void *), void (*freeKey)(void *), void (*freeData)(void *))
-{
-	if (*root == NULL) {
-		return;
-	} else if (cmpKeys(key, (*root)->key) > 0) {
-		avlRemove(&((*root)->right), key, cmpKeys, freeKey, freeData);
-		return;
-	} else if (cmpKeys(key, (*root)->key) < 0) {
-		avlRemove(&((*root)->left), key, cmpKeys, freeKey, freeData);
-		return;
-	} else {
-		if (freeKey)
-			freeKey((*root)->key);
-
-		if (freeData)
-			freeData((*root)->data);
-
-		if ((*root)->left == NULL) {
-			avlNode *tmp = (*root)->right;
-			free(*root);
-			*root = tmp;
-			return;
-		} else if ((*root)->right == NULL) {
-			avlNode *tmp = (*root)->left;
-			free(*root);
-			*root = tmp;
-			return;
-		}
-
-		avlNode *succesor = avlGetMin((*root)->right);
-
-		(*root)->key = succesor->key;
-		(*root)->data = succesor->data;
-
-		avlRemove(&((*root)->right), succesor->key, cmpKeys, NULL, NULL);
-	}
-
-	updateHeight(*root);
-	int bf = getBalanceFactor(*root);
-
-	if (bf > 1 && getBalanceFactor((*root)->left) >= 0)
-		rightRotate(root);
-	else if (bf < -1 && getBalanceFactor((*root)->right) <= 0)
-		leftRotate(root);
-	else if (bf > 1 && getBalanceFactor((*root)->left) < 0)
-		leftRightRotate(root);
-	else if (bf < -1 && getBalanceFactor((*root)->right) > 0)
-		rightLeftRotate(root);
-}
-
-void avlUpdate(avlNode *root, const void *key, int cmpKeys(const void *,const void *), void freeData(void *), void *newData)
-{
-	avlNode *node = (avlNode *)avlFindNode(root, key, cmpKeys);
-
-	if (node == NULL)
-		return;
-
-	if (freeData)
-		freeData(node->data);
-
-	node->data = newData;
-}
-
-void avlOrderTraverse(const avlNode *root, void action(const void *key, const void *data, void *arg), void *arg)
-{
-	if (root == NULL)
-		return;
-
-    avlOrderTraverse(root->left, action, arg);
-    action(root->key, root->data, arg);
-    avlOrderTraverse(root->right, action, arg);
-}
-
-void printCharNTimes(const char c, int n)
-{
-	for (int i = 0; i < n; i++)
-		putchar(c);
-}
-
-void avlPrint(const avlNode *root, void print(const void *key, const void *data, void *arg), void *arg, int padding)
-{
-	if (root == NULL)
-		return;
-
-	printCharNTimes(' ', padding);
-	print(root->key, root->data, arg);
-	avlPrint(root->right, print, arg, padding + 4);
-	avlPrint(root->left, print, arg, padding + 4);
-}
-
-void avlFree(avlNode *root, void freeKey(void *), void freeData(void *))
-{
-	if (root == NULL)
-		return;
-
-	if (freeKey != NULL)
-		freeKey(root->key);
-
-	if (freeData != NULL)
-		freeData(root->data);
-
-	avlFree(root->left, freeKey, freeData);
-	avlFree(root->right, freeKey, freeData);
-
-	free(root);
-}
-
-/*********************************************
-
-
-             Map IMPLEMENTATION
-
-
-**********************************************/
-
-Map *newMap(int cmpKeys(const void *, const void *))
-{
-	Map *m = malloc(sizeof(Map));
-	m->cmpKeys = cmpKeys;
-	m->root = NULL;
-
-	return m;
-}
-
-void mapInsert(Map *m, void *key, void *data)
-{
-	avlInsert(&m->root, key, data, m->cmpKeys);
-}
-
-void *mapFind(const Map *m, const void *key)
-{
-	return avlFind(m->root, key, m->cmpKeys);
-}
-
-bool mapIsExists(const Map *m, const void *key)
-{
-	return avlIsExists(m->root, key, m->cmpKeys);
-}
-
-void mapRemove(Map *m, const void *key, void freeKey(void *), void freeData(void *))
-{
-	avlRemove(&m->root, key, m->cmpKeys, freeKey, freeData);
-}
-
-void mapUpdate(Map *m, const void *key, void freeData(void *), void *newData)
-{
-	avlUpdate(m->root, key, m->cmpKeys, freeData, newData);
-}
-
-void mapOrderTraverse(const Map *m, void action(const void *key, const void *data, void *arg), void *arg)
-{
-    avlOrderTraverse(m->root, action, arg);
-}
-
-bool mapIsEmpty(const Map *m)
-{
-    return m->root == NULL;
-}
-
-void mapFree(Map *m, void freeKey(void *), void freeData(void *))
-{
-	avlFree(m->root, freeKey, freeData);
-}
-
-/*********************************************
-
-
-             Cursor IMPLEMENTATION
-
-
-**********************************************/
 #include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <signal.h>
-
-static struct termios originalTermios;
-
-Result enableRawMode(int vminKeys, int vtime)
-{
-	if (tcgetattr(STDIN_FILENO, &originalTermios) == -1) {
-		return Err;
-	}
-
-	struct termios raw = originalTermios;
-	raw.c_cc[VMIN] = vminKeys;
-	raw.c_cc[VTIME] = vtime;
-	raw.c_cflag |= (CS8);
-	raw.c_oflag &= ~(OPOST);
-	raw.c_iflag &= ~(IXON | ICRNL | ISTRIP | INPCK | BRKINT);
-	raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
-
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
-		return Err;
-	}
-
-	return Ok;
-}
-
-Result disableRawMode()
-{
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTermios) == -1) {
-		return Err;
-	}
-
-	return Ok;
-}
-
-void disableLineWrap()
-{
-	printf("\033[?7l");
-}
-
-void enableLineWrap()
-{
-	printf("\033[?7h");
-}
-
-void hideCursor()
-{
-	printf("\033[?25l");
-}
-
-void showCursor()
-{
-	printf("\033[?25h");
-}
-
-void setCursorStyle(CURSOR_STYLE style)
-{
-	printf("\033[%d q", (int)style);
-}
-
-Result getCursorPos(int *x, int *y)
-{
-	printf("\033[6n");
-
-	if (scanf("\033[%d;%dR", y, x) == 2) {
-		return Ok;
-	}
-
-	return Err;
-}
-
-void setCursorPos(int x, int y)
-{
-	printf("\033[%d;%dH", y ,x);
-}
-
-void setCursorX(int x)
-{
-	printf("\033[%dG", x);
-}
-
-void cursorUp(int n)
-{
-	printf("\033[%dA", n);
-}
-
-void cursorDown(int n)
-{
-	printf("\033[%dB", n);
-}
-
-void cursorRight(int n)
-{
-	printf("\033[%dC", n);
-}
-
-void cursorLeft(int n)
-{
-	printf("\033[%dD", n);
-}
-
-void saveCursorPos()
-{
-	printf("\033[s");
-}
-
-void restoreCursorPos()
-{
-	printf("\033[u");
-}
-
-void enterAlternativeScreen()
-{
-	printf("\033[?1049h");
-}
-
-void exitAlternativeScreen()
-{
-	printf("\033[?1049l");
-}
-
-void clearLine()
-{
-	printf("\033[K");
-}
-
-void clearScreen()
-{
-	printf("\033[2J");
-}
-
-void updateScreen()
-{
-	fflush(stdout);
-}
-
-Result getScreenSizeByCursor(int *width, int *height)
-{
-	setCursorPos(999, 999);
-
-	return getCursorPos(width, height);
-}
-
-Result getScreenSizeByIoctl(int *width, int *height)
-{
-	struct winsize ws;
-
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != 0) {
-		return Err;
-	}
-
-	*width = ws.ws_col;
-	*height = ws.ws_row;
-
-	return Ok;
-}
-
-Result getScreenSize(int *width, int *height)
-{
-	if (getScreenSizeByIoctl(width, height) == Ok) {
-		return Ok;
-	}
-
-	return getScreenSizeByCursor(width, height);
-}
-
-Result registerChangeInWindowSize(void funciton(int))
-{
-	struct sigaction sa;
-	sa.sa_handler = funciton;
-	sa.sa_flags = 0;
-	sigemptyset(&sa.sa_mask);
-
-	if (sigaction(SIGWINCH, &sa, NULL) == -1) {
-		return Err;
-	}
-
-	return Ok;
-}
-
-Result enableFullBuffering(FILE *fp)
-{
-	// do not flush on '\n'
-	if (setvbuf(fp, NULL, _IOFBF, BUFSIZ) != 0) {
-		return Err;
-	}
-
-	return Ok;
-}
-
-int waitForByte()
-{
-	char c;
-
-	if (read(STDIN_FILENO, &c, 1) != 1) {
-		return EMPTY_KEY;
-	}
-
-	return c;
-}
-
-#define SEQUENCE(a, b) ((unsigned short)((((unsigned short)b) << 8) | a))
-
-int readEscapeKey()
-{
-	unsigned short key;
-
-	if (read(STDIN_FILENO, &key, 2) != 2) {
-		return '\033';
-	}
-
-
-	switch (key) {
-		case SEQUENCE('[', 'A'): return ARROW_UP;
-		case SEQUENCE('[', 'B'): return ARROW_DOWN;
-		case SEQUENCE('[', 'C'): return ARROW_RIGHT;
-		case SEQUENCE('[', 'D'): return ARROW_LEFT;
-		case SEQUENCE('[', '1'): return HOME; // might be with a ~
-		case SEQUENCE('[', '5'): return PAGE_UP; // might be with a ~
-		case SEQUENCE('[', '6'): return PAGE_DOWN; // might be with a ~
-	}
-
-	return '\033';
-}
-
-int readKey()
-{
-	char c = waitForByte();
-
-	if (c == '\033') {
-		return readEscapeKey();
-	}
-
-	return c;
-}
-
-/*********************************************
-
-
-             Path IMPLEMENTATION
-
-
-**********************************************/
-
+#include <stdbool.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <errno.h>
+#include <assert.h>
 
-const char *getPathExtention(const char *path)
-{
-	const char *lastDot = strrchr(path, '.');
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   util header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
 
-	if (lastDot == NULL) {
-		return path;
-	}
+#define Z_DEFAULT_GROWTH_RATE 2
 
-	return lastDot + 1;
+#define CALL_F_IF_NOT_NULL(f, ...) if (f) f(__VA_ARGS__)
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
+typedef enum { Z_Ok, Z_Err } Z_Result;
+
+int z_in_range(int min, int val, int max);
+int z_get_file_size(FILE *fp);
+int z_get_fmt_size(const char *fmt, ...);
+int z_get_fmt_size_va(const char *fmt, va_list ap);
+void *z_memdup(const void *mem, const size_t size);
+void z_swap(void *a, void *b, const size_t size);
+int z_max(int a, int b);
+int z_min(int a, int b);
+int z_max3(int a, int b, int c);
+int z_min3(int a, int b, int c);
+
+#define z_ensure_capacity(da, cap)                                                     \
+    do {                                                                               \
+        if ((da)->capacity < (cap)) {                                                      \
+            int new_capacity = z_max((cap), (da)->capacity * Z_DEFAULT_GROWTH_RATE);   \
+            (da)->capacity = new_capacity;                                             \
+            (da)->ptr = realloc((da)->ptr, sizeof((da)->ptr[0]) * (da)->capacity);     \
+        }                                                                              \
+    } while (0)
+
+#define z_null_terminate(da)                                   \
+    do {                                                       \
+        z_ensure_capacity((da), (da)->len + 1);                \
+        memset(&(da)->ptr[(da)->len], 0, sizeof(*(da)->ptr));  \
+    } while(0)
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   cursor header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+#define CTRL_KEY(k)                ((k) & 0x1f)
+
+#define Z_COLOR_RESET            "\033[0m"
+
+#define Z_COLOR_RED                "\033[0;31m"
+#define Z_COLOR_GREEN            "\033[0;32m"
+#define Z_COLOR_YELLOW          "\033[0;33m"
+#define Z_COLOR_BLUE            "\033[0;34m"
+#define Z_COLOR_MAGENTA         "\033[0;35m"
+#define Z_COLOR_CYAN            "\033[0;36m"
+#define Z_COLOR_WHITE            "\033[0;37m"
+#define Z_COLOR_GRAY            "\033[0;90m"
+
+#define Z_COLOR_BOLD_RED        "\033[1;91m"
+#define Z_COLOR_BOLD_GREEN      "\033[1;92m"
+#define Z_COLOR_BOLD_YELLOW     "\033[1;93m"
+#define Z_COLOR_BOLD_BLUE       "\033[1;94m"
+#define Z_COLOR_BOLD_MAGENTA    "\033[1;95m"
+#define Z_COLOR_BOLD_CYAN       "\033[1;96m"
+#define Z_COLOR_BOLD_WHITE      "\033[1;97m"
+#define Z_COLOR_BOLD_GRAY       "\033[1;90m"
+
+#define Z_KEY_EMPTY         999
+#define Z_KEY_ARROW_LEFT    1000
+#define Z_KEY_ARROW_RIGHT   1001
+#define Z_KEY_ARROW_UP      1002
+#define Z_KEY_ARROW_DOWN    1003
+#define Z_KEY_PAGE_UP       1007
+#define Z_KEY_PAGE_DOWN     1008
+#define Z_KEY_DELETE        1004
+#define Z_KEY_HOME          1005
+#define Z_KEY_END           1006
+
+typedef enum {
+    Z_CURSOR_STYLE_BLOCK_STEADY       = 0,
+    Z_CURSOR_STYLE_BLOCK_BLINKING     = 1,
+    Z_CURSOR_STYLE_UNDERLINE_BLINKING = 3,
+    Z_CURSOR_STYLE_UNDERLINE_STEADY   = 4,
+    Z_CURSOR_STYLE_BEAM_STEADY        = 6,
+    Z_CURSOR_STYLE_BEAM_BLINKING      = 5,
+} Z_CURSOR_STYLE;
+
+#define z_set_cursor_style(style)         printf("\033[%dq", (int)(style))
+#define z_disable_line_wrap()             printf("\033[?7l")
+#define z_enbale_line_wrap()              printf("\033[?7h")
+#define z_hide_cursor()                   printf("\033[?25l")
+#define z_show_cursor()                   printf("\033[?25h")
+#define z_set_cursor_pos(x, y)            printf("\033[%d;%dH", (y), (x))
+#define z_set_cursor_x(x)                 printf("\033[%dG", (x))
+#define z_cursor_up(n)                    printf("\033[%dA", (n))
+#define z_cursor_down(n)                  printf("\033[%dB", (n))
+#define z_cursor_right(n)                 printf("\033[%dC", (n))
+#define z_cursor_left(n)                  printf("\033[%dD", (n))
+// unsupported on some terminals
+#define z_save_cursor_pos()               printf("\033[s")
+#define z_restore_cursor_pos()            printf("\033[u")
+#define z_enter_alternative_screen()      printf("\033[?1049h")
+#define z_exit_alternative_screen()       printf("\033[?1049l")
+#define z_clear_line()                    printf("\033[K")
+#define z_clear_screen()                  printf("\033[2J")
+#define z_update_screen()                 fflush(stdout)
+
+Z_Result z_enable_raw_mode(int vminKeys, int vtime);
+Z_Result z_disable_raw_mode();
+
+Z_Result z_get_cursor_pos(int *x, int *y);
+
+Z_Result z_get_screen_size_by_cursor(int *width, int *height);
+Z_Result z_get_screen_size_by_ioctl(int *width, int *height);
+Z_Result z_get_screen_size(int *width, int *height);
+
+Z_Result z_register_change_in_window_size(void function(int));
+
+Z_Result z_enable_full_buffering(FILE *fp);
+
+int z_wait_for_byte();
+int z_read_escape_key();
+int z_read_key();
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   vector header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+#define Z_VECTOR_DECLARE(name, T, prefix)                               \
+                                                                       \
+typedef struct {                                                       \
+    T *ptr;                                                            \
+    int len;                                                           \
+    int capacity;                                                      \
+} name;                                                                \
+                                                                       \
+void prefix##_init(name *v);                                           \
+T prefix##_at(name *v, int i);                                         \
+void prefix##_add(name *v, T data);                                    \
+T prefix##_remove_last(name *v);                                       \
+int prefix##_len(const name *v);                                       \
+bool prefix##_is_empty(const name *v);                                 \
+void prefix##_for_each(name *v, void function(T));                     \
+void prefix##_free(name *v, void free_function(T));                    \
+void prefix##_print(const name *v, void print_data(T));
+
+
+#define Z_VECTOR_IMPLEMENT(name, T, prefix)                            \
+                                                                       \
+void prefix##_init(name *v)                                            \
+{                                                                      \
+    v->ptr = NULL;                                                     \
+    v->len = 0;                                                        \
+    v->capacity = 0;                                                   \
+}                                                                      \
+                                                                       \
+T prefix##_at(name *v, int i)                                          \
+{                                                                      \
+    return v->ptr[i];                                                  \
+}                                                                      \
+                                                                       \
+void prefix##_add(name *v, T data)                                     \
+{                                                                      \
+    z_ensure_capacity(v, v->len + 1);                                  \
+    v->ptr[v->len++] = data;                                           \
+}                                                                      \
+                                                                       \
+T prefix##_remove_last(name *v)                                        \
+{                                                                      \
+    return v->ptr[--v->len];                                           \
+}                                                                      \
+                                                                       \
+int prefix##_len(const name *v)                                        \
+{                                                                      \
+    return v->len;                                                     \
+}                                                                      \
+                                                                       \
+bool prefix##_is_empty(const name *v)                                  \
+{                                                                      \
+    return v->len == 0;                                                \
+}                                                                      \
+                                                                       \
+void prefix##_for_each(name *v, void function(T))                      \
+{                                                                      \
+    for (int i = 0; i < v->len; i++) {                                 \
+        function(v->ptr[i]);                                           \
+    }                                                                  \
+}                                                                      \
+                                                                       \
+void prefix##_free(name *v, void free_function(T))                     \
+{                                                                      \
+    if (free_function) {                                               \
+        prefix##_for_each(v, free_function);                           \
+    } else {                                                           \
+        free(v->ptr);                                                  \
+    }                                                                  \
+}                                                                      \
+                                                                       \
+void prefix##_print(const name *v, void print_data(T))                 \
+{                                                                      \
+    if (v->len == 0) {                                                 \
+        printf("[]\n");                                                \
+        return;                                                        \
+    }                                                                  \
+                                                                       \
+    printf("[ ");                                                      \
+                                                                       \
+    for (int i = 0; i < v->len - 1; i++) {                             \
+        print_data(v->ptr[i]);                                         \
+        printf(", ");                                                  \
+    }                                                                  \
+                                                                       \
+    print_data(v->ptr[v->len - 1]);                                    \
+                                                                       \
+    printf(" ]\n");                                                    \
 }
 
-const char *getHomePath()
-{
-	const char *home = getenv("HOME");
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   avl tree header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
 
-	if (home == NULL) {
-		return ".";
-	}
+#define Z_AVL_DECLARE(type_name, K, V, prefix)                         \
+                                                                       \
+typedef struct type_name {                                             \
+    struct type_name *left;                                            \
+    struct type_name *right;                                           \
+    K key;                                                             \
+    V value;                                                           \
+    char height;                                                       \
+} type_name;                                                           \
+                                                                       \
+void prefix##_put(type_name **root,                                    \
+                     K key,                                            \
+                     V value,                                          \
+                     int cmp_keys(K, K),                               \
+                     void free_key(V),                                 \
+                     void free_value(V));                              \
+                                                                       \
+bool prefix##_is_exists(type_name *root,                               \
+                        K key,                                         \
+                        int cmp_keys(K, K));                           \
+                                                                       \
+bool prefix##_find(type_name *root,                                    \
+                K key,                                                 \
+                int cmp_keys(K, K),                                    \
+                V *value);                                             \
+                                                                       \
+void prefix##_remove(type_name **root,                                 \
+                     K key,                                            \
+                     int cmp_keys(K, K),                               \
+                     void free_key(K),                                 \
+                     void free_value(V));                              \
+                                                                       \
+void prefix##_order_traverse(type_name *root,                          \
+                             void action(K key, V value, void *arg),   \
+                             void *arg);                               \
+                                                                       \
+void prefix##_print(type_name *root,                                   \
+                    void print(K key, V value, void *arg),             \
+                    void *arg, int padding);                           \
+                                                                       \
+void prefix##_free(type_name *root,                                    \
+                   void free_key(K),                                   \
+                   void free_value(V));
 
-	return home;
+
+
+#define Z_AVL_IMPLEMENT(type_name, K, V, prefix)                              \
+                                                                              \
+int prefix##_get_height(const type_name *node)                                \
+{                                                                             \
+    if (node == NULL) {                                                       \
+        return 0;                                                             \
+    }                                                                         \
+                                                                              \
+    return node->height;                                                      \
+}                                                                             \
+                                                                              \
+void prefix##_update_height(type_name *node)                                  \
+{                                                                             \
+    node->height = 1 + z_max(                                                 \
+            prefix##_get_height(node->right),                                 \
+            prefix##_get_height(node->left)                                   \
+    );                                                                        \
+}                                                                             \
+                                                                              \
+int prefix##_get_balance_factor(const type_name *node)                        \
+{                                                                             \
+    if (node == NULL) {                                                       \
+        return 0;                                                             \
+    }                                                                         \
+                                                                              \
+    return prefix##_get_height(node->left) - prefix##_get_height(node->right);\
+}                                                                             \
+                                                                              \
+void prefix##_left_rotate(type_name **root)                                   \
+{                                                                             \
+    type_name *newRoot = (*root)->right;                                      \
+    type_name *tmp = newRoot->left;                                           \
+                                                                              \
+    newRoot->left = *root;                                                    \
+    (*root)->right = tmp;                                                     \
+                                                                              \
+    prefix##_update_height(newRoot->left);                                    \
+    prefix##_update_height(newRoot);                                          \
+                                                                              \
+    *root = newRoot;                                                          \
+}                                                                             \
+                                                                              \
+void prefix##_right_rotate(type_name **root)                                  \
+{                                                                             \
+    type_name *newRoot = (*root)->left;                                       \
+    type_name *tmp = newRoot->right;                                          \
+                                                                              \
+    newRoot->right = *root;                                                   \
+    (*root)->left = tmp;                                                      \
+                                                                              \
+    prefix##_update_height(newRoot->right);                                   \
+    prefix##_update_height(newRoot);                                          \
+                                                                              \
+    *root = newRoot;                                                          \
+}                                                                             \
+                                                                              \
+void prefix##_left_right_rotate(type_name **root)                             \
+{                                                                             \
+    prefix##_left_rotate(&(*root)->left);                                     \
+    prefix##_right_rotate(root);                                              \
+}                                                                             \
+                                                                              \
+void prefix##_right_left_rotate(type_name **root)                             \
+{                                                                             \
+    prefix##_right_rotate(&(*root)->right);                                   \
+    prefix##_left_rotate(root);                                               \
+}                                                                             \
+                                                                              \
+type_name *prefix##_new(K key, V value)                                       \
+{                                                                             \
+    type_name *n = malloc(sizeof(type_name));                                 \
+    n->key = key;                                                             \
+    n->value = value;                                                         \
+    n->height = 1;                                                            \
+    n->left = NULL;                                                           \
+    n->right = NULL;                                                          \
+                                                                              \
+    return n;                                                                 \
+}                                                                             \
+                                                                              \
+type_name *prefix##_get_min(type_name *root)                                  \
+{                                                                             \
+    type_name *curr = root;                                                   \
+                                                                              \
+    while (curr->left != NULL) {                                              \
+        curr = curr->left;                                                    \
+    }                                                                         \
+                                                                              \
+    return curr;                                                              \
+}                                                                             \
+                                                                              \
+type_name *prefix##_find_node(type_name *root, K key, int cmp_keys(K, K))     \
+{                                                                             \
+    type_name *curr = root;                                                   \
+                                                                              \
+    while (curr != NULL) {                                                    \
+        int cmp_res = cmp_keys(key, curr->key);                               \
+                                                                              \
+        if (cmp_res > 0) {                                                    \
+            curr = curr->right;                                               \
+        } else if (cmp_res < 0) {                                             \
+            curr = curr->left;                                                \
+        } else {                                                              \
+            return curr;                                                      \
+        }                                                                     \
+    }                                                                         \
+                                                                              \
+    return NULL;                                                              \
+}                                                                             \
+                                                                              \
+bool prefix##_is_exists(type_name *root,                                      \
+                        K key,                                                \
+                        int cmp_keys(K, K))                                   \
+{                                                                             \
+    return prefix##_find_node(root, key, cmp_keys) != NULL;                        \
+}                                                                             \
+                                                                              \
+bool prefix##_find(type_name *root,                                           \
+                K key,                                                        \
+                int cmp_keys(K, K),                                           \
+                V *value)                                                     \
+{                                                                             \
+    type_name *node = prefix##_find_node(root, key, cmp_keys);                     \
+                                                                              \
+    if (node != NULL) {                                                       \
+        *value = node->value;                                                 \
+        return true;                                                          \
+    }                                                                         \
+                                                                              \
+    return false;                                                             \
+}                                                                             \
+                                                                              \
+void prefix##_put(type_name **root,                                           \
+                     K key,                                                   \
+                     V value,                                                 \
+                     int cmp_keys(K, K),                                      \
+                     void free_key(V),                                        \
+                     void free_value(V))                                      \
+{                                                                             \
+    if (*root == NULL) {                                                      \
+        *root = prefix##_new(key, value);                                     \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    int cmp_res = cmp_keys(key, (*root)->key);                                \
+                                                                              \
+    if (cmp_res > 0) {                                                        \
+        prefix##_put(&(*root)->right, key, value, cmp_keys,                   \
+                free_key, free_value);                                        \
+    } else if (cmp_res < 0) {                                                 \
+        prefix##_put(&(*root)->left, key, value, cmp_keys,                    \
+                free_key, free_value);                                        \
+    } else {                                                                  \
+        CALL_F_IF_NOT_NULL(free_value, (*root)->value);                       \
+        CALL_F_IF_NOT_NULL(free_value, key);                                  \
+        (*root)->value = value;                                               \
+    }                                                                         \
+                                                                              \
+    prefix##_update_height(*root);                                            \
+                                                                              \
+    int bf = prefix##_get_balance_factor(*root);                              \
+                                                                              \
+    if (bf > 1 && cmp_keys(key, (*root)->left->key) < 0) {                    \
+        prefix##_right_rotate(root);                                          \
+    } else if (bf < -1 && cmp_keys(key, (*root)->right->key) > 0) {           \
+        prefix##_left_rotate(root);                                           \
+    } else if (bf > 1 && cmp_keys(key, (*root)->left->key) > 0) {             \
+        prefix##_left_right_rotate(root);                                     \
+    } else if (bf < -1 && cmp_keys(key, (*root)->right->key) < 0) {           \
+        prefix##_right_left_rotate(root);                                     \
+    }                                                                         \
+}                                                                             \
+                                                                              \
+void prefix##_remove(type_name **root,                                        \
+                     K key,                                                   \
+                     int cmp_keys(K, K),                                      \
+                     void free_key(K),                                        \
+                     void free_value(V))                                      \
+{                                                                             \
+    if (*root == NULL) {                                                      \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    int cmp_res = cmp_keys(key, (*root)->key);                                \
+                                                                              \
+    if (cmp_res > 0) {                                                        \
+        prefix##_remove(&((*root)->right), key, cmp_keys, free_key, free_value);   \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    if (cmp_res < 0) {                                                        \
+        prefix##_remove(&((*root)->left), key, cmp_keys, free_key, free_value);    \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    /* we reached the node */                                                 \
+                                                                              \
+    CALL_F_IF_NOT_NULL(free_key, (*root)->key);                               \
+    CALL_F_IF_NOT_NULL(free_value, (*root)->value);                           \
+                                                                              \
+    if ((*root)->left == NULL) {                                              \
+        type_name *tmp = (*root)->right;                                      \
+        free(*root);                                                          \
+        *root = tmp;                                                          \
+        return;                                                               \
+    } else if ((*root)->right == NULL) {                                      \
+        type_name *tmp = (*root)->left;                                       \
+        free(*root);                                                          \
+        *root = tmp;                                                          \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    type_name *succesor = prefix##_get_min((*root)->right);                   \
+                                                                              \
+    (*root)->key = succesor->key;                                             \
+    (*root)->value = succesor->value;                                         \
+                                                                              \
+    prefix##_remove(&((*root)->right), succesor->key, cmp_keys, NULL, NULL);  \
+                                                                              \
+    prefix##_update_height(*root);                                            \
+    int bf = prefix##_get_balance_factor(*root);                              \
+                                                                              \
+    if (bf > 1 && prefix##_get_balance_factor((*root)->left) >= 0) {          \
+        prefix##_right_rotate(root);                                          \
+    } else if (bf < -1 && prefix##_get_balance_factor((*root)->right) <= 0) { \
+        prefix##_left_rotate(root);                                           \
+    } else if (bf > 1 && prefix##_get_balance_factor((*root)->left) < 0) {    \
+        prefix##_left_right_rotate(root);                                     \
+    } else if (bf < -1 && prefix##_get_balance_factor((*root)->right) > 0) {  \
+        prefix##_right_left_rotate(root);                                     \
+    }                                                                         \
+}                                                                             \
+                                                                              \
+void prefix##_order_traverse(type_name *root,                                 \
+                             void action(K key, V value, void *arg),          \
+                             void *arg)                                       \
+{                                                                             \
+    if (root == NULL) {                                                       \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    prefix##_order_traverse(root->left, action, arg);                              \
+                                                                              \
+    action(root->key, root->value, arg);                                      \
+    prefix##_order_traverse(root->right, action, arg);                             \
+}                                                                             \
+                                                                              \
+void print_char_n_times(char c, int n)                                        \
+{                                                                             \
+    for (int i = 0; i < n; i++) {                                             \
+        putchar(c);                                                           \
+    }                                                                         \
+}                                                                             \
+                                                                              \
+void prefix##_print(type_name *root,                                          \
+                    void print(K key, V value, void *arg),                    \
+                    void *arg, int padding)                                   \
+{                                                                             \
+    if (root == NULL) {                                                       \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    print_char_n_times(' ', padding);                                         \
+    print(root->key, root->value, arg);                                       \
+    prefix##_print(root->right, print, arg, padding + 4);                          \
+    prefix##_print(root->left, print, arg, padding + 4);                           \
+}                                                                             \
+                                                                              \
+void prefix##_free(type_name *root,                                           \
+                   void free_key(K),                                          \
+                   void free_value(V))                                        \
+{                                                                             \
+    if (root == NULL) {                                                       \
+        return;                                                               \
+    }                                                                         \
+                                                                              \
+    CALL_F_IF_NOT_NULL(free_key, root->key);                                  \
+    CALL_F_IF_NOT_NULL(free_value, root->value);                              \
+                                                                              \
+    prefix##_free(root->left, free_key, free_value);                               \
+    prefix##_free(root->right, free_key, free_value);                              \
+                                                                              \
+    free(root);                                                               \
 }
 
-char *expandPath(const char *path)
-{
-	if (path[0] == '~') {
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   map header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
 
-		const char *home = getHomePath();
-		int size = getFmtSize("%s%s", home, path + 1) + 1;
-		char *dst = malloc(sizeof(char) * size);
-		snprintf(dst, size, "%s%s", home, path + 1);
 
-		return dst;
-	}
+#define Z_MAP_DECLARE(type_name, K, V, prefix)                         \
+                                                                       \
+Z_AVL_DECLARE(_avl_##type_name, K, V, _avl_##prefix)                   \
+                                                                       \
+typedef struct {                                                       \
+    _avl_##type_name *root;                                            \
+    int (*cmp_keys)(K, K);                                             \
+} type_name;                                                           \
+                                                                       \
+void prefix##_init(type_name *m, int cmp_keys(K, K));                  \
+                                                                       \
+void prefix##_put(type_name *m,                                        \
+                  K key,                                               \
+                  V value,                                             \
+                  void free_key(V),                                    \
+                  void free_value(V));                                 \
+                                                                       \
+bool prefix##_find(const type_name *m, K key, V *value);               \
+                                                                       \
+bool prefix##_is_exists(const type_name *m, K key);                    \
+                                                                       \
+void prefix##_remove(type_name *m, K key,                              \
+                     void free_key(K),                                 \
+                     void free_value(V));                              \
+                                                                       \
+void prefix##_order_traverse(const type_name *m,                       \
+                             void action(K key, V value, void *arg),   \
+                             void *arg);                               \
+                                                                       \
+void prefix##_free(type_name *m,                                       \
+                   void free_key(K),                                   \
+                   void free_value(V));
 
-	return strdup(path);
+#define Z_MAP_IMPLEMENT(type_name, K, V, prefix)                       \
+                                                                       \
+Z_AVL_IMPLEMENT(_avl_##type_name, K, V, _avl_##prefix)                 \
+                                                                       \
+void prefix##_init(type_name *m, int cmp_keys(K, K))                   \
+{                                                                      \
+    m->cmp_keys = cmp_keys;                                            \
+    m->root = NULL;                                                    \
+}                                                                      \
+                                                                       \
+void prefix##_put(type_name *m,                                        \
+                  K key,                                               \
+                  V value,                                             \
+                  void free_key(V),                                    \
+                  void free_value(V))                                  \
+{                                                                      \
+    _avl_##prefix##_put(&m->root, key, value, m->cmp_keys, free_key, free_value);\
+}                                                                      \
+                                                                       \
+bool prefix##_find(const type_name *m, K key, V *value)                \
+{                                                                      \
+    return _avl_##prefix##_find(m->root, key, m->cmp_keys, value);     \
+}                                                                      \
+                                                                       \
+bool prefix##_is_exists(const type_name *m, K key)                     \
+{                                                                      \
+    return _avl_##prefix##_is_exists(m->root, key, m->cmp_keys);       \
+}                                                                      \
+                                                                       \
+void prefix##_remove(type_name *m, K key,                              \
+                     void free_key(K),                                 \
+                     void free_value(V))                               \
+{                                                                      \
+    _avl_##prefix##_remove(&m->root,                                   \
+            key,                                                       \
+            m->cmp_keys,                                               \
+            free_key,                                                  \
+            free_value);                                               \
+}                                                                      \
+                                                                       \
+void prefix##_order_traverse(const type_name *m,                       \
+                             void action(K key, V value, void *arg),   \
+                             void *arg)                                \
+{                                                                      \
+    _avl_##prefix##_order_traverse(m->root, action, arg);              \
+}                                                                      \
+                                                                       \
+void prefix##_free(type_name *m,                                       \
+                   void free_key(K),                                   \
+                   void free_value(V))                                 \
+{                                                                      \
+    _avl_##prefix##_free(m->root, free_key, free_value);               \
 }
 
-void compressPath(char *path)
-{
-	const char *home = getHomePath();
-	int homeLen = strlen(home);
 
-	if (strncmp(home, path, homeLen) == 0) {
-		int bufLen = strlen(path) + homeLen;
-		char buf[bufLen];
-		snprintf(buf, bufLen, "~%s", path + homeLen);
-		strncpy(path, buf, bufLen);
-	}
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   matrix header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+#define Z_MAT_DECLARE(name, T)    \
+typedef struct {                  \
+    T *ptr;                       \
+    int x;                        \
+    int y;                        \
+    int capacity;                 \
+} name;
+
+#define Z_MAT_AT(mat, _y, _x) ((mat)->ptr[(_y) * (mat)->x + (_x)])
+
+#define Z_MAT_INIT(mat, _x, _y)                                     \
+    do {                                                            \
+        (mat)->ptr = malloc(sizeof((mat)->ptr[0]) * (_x) * (_y));   \
+        (mat)->x = (_x);                                            \
+        (mat)->y = (_y);                                            \
+        (mat)->capacity = (_x) * (_y);                              \
+    } while (0)
+
+#define Z_MAT_RESIZE(mat, _x, _y)                                                   \
+    do {                                                                            \
+        if ((mat)->capacity < (_x) * (_y)) {                                        \
+            (mat)->capacity = (_x) * (_y);                                          \
+            (mat)->ptr = realloc((mat)->ptr, sizeof((mat)->ptr[0]) * (_x) * (_y));  \
+        }                                                                           \
+                                                                                    \
+        (mat)->x = (_x);                                                            \
+        (mat)->y = (_y);                                                            \
+    } while (0)
+
+#define Z_MAT_FREE(mat) do { free((mat)->ptr); (mat)->ptr = NULL; } while (0)
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   string header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+
+typedef struct {
+    char *ptr;
+    int len;
+    int capacity;
+} Z_Str;
+
+typedef Z_Str Z_Str_Slice;
+
+Z_Str z_str_new(const char *fmt, ...);
+Z_Str z_str_new_va(const char *fmt, va_list ap);
+
+void z_str_init(Z_Str *s, const char *fmt, ...);
+void z_str_init_va(Z_Str *s, const char *fmt, va_list ap);
+
+void z_str_push(Z_Str *s, const char *fmt, ...);
+void z_str_push_va(Z_Str *s, const char *fmt, va_list ap);
+void z_str_push_c(Z_Str *s, char c);
+char z_str_top_c(Z_Str *s);
+char z_str_pop_c(Z_Str *s);
+void z_str_push_str(Z_Str *dst, const Z_Str_Slice src);
+
+int z_str_len(Z_Str_Slice s);
+bool z_str_is_empty(Z_Str_Slice s);
+
+int z_str_cmp(Z_Str_Slice s1, Z_Str_Slice s2);
+int z_str_n_cmp(Z_Str_Slice s1, Z_Str_Slice s2, int n);
+
+Z_Str_Slice z_str_tok_init(Z_Str_Slice s);
+Z_Result z_str_tok_next(Z_Str_Slice s, Z_Str_Slice *slice, const char *delim);
+
+void z_str_replace(Z_Str *s, const char *target, const char *replacement);
+void z_str_trim(Z_Str *s);
+void z_str_trim_cset(Z_Str *s, const char *cset);
+
+void z_str_print(Z_Str_Slice s);
+void z_str_println(Z_Str_Slice s);
+void z_str_free(Z_Str s);
+void z_str_free_ptr(Z_Str *s);
+void z_str_clear(Z_Str *s);
+Z_Str z_str_get_line(FILE *fp);
+Z_Result z_read_whole_file(Z_Str *s, const char *pathname);
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   path header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+typedef enum {
+    Z_Pipe_Mode_Read = 0,
+    Z_Pipe_Mode_Write = 1,
+} Z_Pipe_Mode;
+
+const char *z_get_path_extention(const char *path);
+const char *z_get_home_path();
+void z_expand_path(const char *pathname, Z_Str *output);
+char *z_compress_path(const char *pathname);
+bool z_is_extention_equal(const char *path, const char *extention);
+
+Z_Result z_dir_traverse(const char *dir, bool action(const char *));
+
+bool z_is_dir(const char *pathname);
+bool z_is_regular_file(const char *pathname);
+bool z_is_path_exists(const char *pathname);
+
+Z_Result z_write_file(const char *pathname, const char *fmt, ...);
+Z_Result z_append_file(const char *pathname, const char *fmt, ...);
+Z_Result z_read_file(const char *pathname, const char *fmt, ...);
+
+Z_Result z_redirect_fd(int src_fd, const char *dst_pathname);
+Z_Result z_popen2(char *path, char *argv[], FILE *ppipe[2]);
+
+bool z_mkdir(const char *pathname);
+
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   cmd header
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+#define z_print_error(fmt, ...)	\
+    printf("[" Z_COLOR_RED "ERROR" Z_COLOR_RESET "] " fmt "\n", ##__VA_ARGS__)
+
+#define z_print_warning(fmt, ...) \
+    printf("[" Z_COLOR_YELLOW "WARNING" Z_COLOR_RESET "] " fmt "\n", ##__VA_ARGS__)
+
+#define z_print_info(fmt, ...) \
+    printf("[" Z_COLOR_GREEN "INFO" Z_COLOR_RESET "] " fmt "\n", ##__VA_ARGS__)
+
+typedef struct {
+	char **ptr;
+	int len;
+    int capacity;
+} Z_Cmd;
+
+bool _z_should_rebuild(const char *target, ...);
+bool z_should_rebuild_va(const char *target, va_list ap);
+#define z_should_rebuild(target, ...) _z_should_rebuild(target, ##__VA_ARGS__, NULL)
+void z_rebuild_yourself(const char *src_pathname, char **argv);
+void z_cmd_init(Z_Cmd *cmd);
+#define z_cmd_append(cmd, ...) _z_cmd_append(cmd, __VA_ARGS__, NULL)
+void _z_cmd_append(Z_Cmd *cmd, ...);
+void z_cmd_append_va(Z_Cmd *cmd, va_list ap);
+int z_cmd_run_async(Z_Cmd *cmd);
+int _z_run_async(const char *arg, ...);
+#define z_run_async(arg, ...) _z_run_async(arg, ##__VA_ARGS__, NULL)
+void z_cmd_free(Z_Cmd *cmd);
+void z_cmd_clear(Z_Cmd *cmd);
+
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+
+
+#ifdef LIBZATAR_IMPLEMENTATION
+
+
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+
+
+
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   util implementation
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+void z_swap(void *a, void *b, const size_t size)
+{
+    char tmp[size];
+    memcpy(tmp, a, size);
+    memcpy(a, b, size);
+    memcpy(b, tmp, size);
 }
 
-Result nextInDir(DIR *dir, const char *dirName, char *destFileName, int destLen)
+int z_get_file_size(FILE *fp)
 {
-	struct dirent *de = readdir(dir);
+    int curr = ftell(fp);
+    fseek(fp, 0, SEEK_END);
 
-	if (de == NULL) {
-		return Err;
-	}
+    int size = ftell(fp);
+    fseek(fp, curr, SEEK_SET);
 
-	snprintf(destFileName, destLen, "%s/%s", dirName, de->d_name);
-
-	return Ok;
+    return size;
 }
 
-Result dirTraverse(const char *dir, bool action(const char *))
+int z_get_fmt_size(const char *fmt, ...)
 {
-	struct dirent *de;
-	DIR *dr = opendir(dir);
+    va_list ap;
+    va_start(ap, fmt);
 
-	if (dr == NULL) {
-		return Err;
-	}
+    int size = z_get_fmt_size_va(fmt, ap);
+    va_end(ap);
 
-	while ((de = readdir(dr))) {
-
-		const char *file = de->d_name;
-		char fullPath[PATH_MAX];
-
-		int len = snprintf(fullPath, PATH_MAX, "%s/%s", dir, file);
-		fullPath[len] = '\0';
-
-		if (action(fullPath) == false) {
-			break;
-		}
-	}
-
-	closedir(dr);
-
-	return Ok;
+    return size;
 }
 
-bool isExtentionEqual(const char *path, const char *extention)
+int z_get_fmt_size_va(const char *fmt, va_list ap)
 {
-	return strcmp(getPathExtention(path), extention) == 0;
+    va_list ap1;
+    va_copy(ap1, ap);
+
+    int size = vsnprintf(NULL, 0, fmt, ap1);
+    va_end(ap1);
+
+    return size;
 }
 
-bool isDir(const char *path)
+void *z_memdup(const void *mem, const size_t size)
 {
-	struct stat sb;
-	stat(path, &sb);
-
-	return S_ISDIR(sb.st_mode);
+    void *newMem = malloc(size);
+    memcpy(newMem, mem, size);
+    return newMem;
 }
 
-bool isRegularFile(const char *path)
+int z_max(int a, int b)
 {
-	struct stat sb;
-	stat(path, &sb);
-
-	return S_ISREG(sb.st_mode);
+    return a > b ? a : b;
 }
 
-bool isPathExists(const char *path)
+int z_min(int a, int b)
 {
-	return !access(path, F_OK);
+    return a > b ? b : a;
 }
 
-Result echoFileWrite(const char *fileName, const char *fmt, ...)
+int z_min3(int a, int b, int c)
 {
-	va_list ap;
-	va_start(ap, fmt);
-
-	FILE *fp = fopen(fileName, "w");
-
-	if (fp == NULL) {
-		return Err;
-	}
-
-	vfprintf(fp, fmt, ap);
-	va_end(ap);
-	return Ok;
+    return z_min(a, z_min(b, c));
 }
 
-Result echoFileAppend(const char *fileName, const char *fmt, ...)
+int z_max3(int a, int b, int c)
 {
-	va_list ap;
-	va_start(ap, fmt);
-
-	FILE *fp = fopen(fileName, "a");
-
-	if (fp == NULL) {
-		return Err;
-	}
-
-	vfprintf(fp, fmt, ap);
-	va_end(ap);
-	return Ok;
+    return z_max(a, z_max(b, c));
 }
 
-Result readFile(const char *fileName, const char *fmt, ...)
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   cursor implementation
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+static struct termios original_termios;
+
+Z_Result z_enable_raw_mode(int vminKeys, int vtime)
 {
-	va_list ap;
-	va_start(ap, fmt);
-
-	FILE *fp = fopen(fileName, "r");
-
-	if (fp == NULL) {
-		return Err;
-	}
-
-	if (vfscanf(fp, fmt, ap) == EOF) {
-        fclose(fp);
-		return Err;
+    if (tcgetattr(STDIN_FILENO, &original_termios) == -1) {
+        return Z_Err;
     }
 
-	va_end(ap);
+    struct termios raw = original_termios;
+    raw.c_cc[VMIN] = vminKeys;
+    raw.c_cc[VTIME] = vtime;
+    raw.c_cflag |= (CS8);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_iflag &= ~(IXON | ICRNL | ISTRIP | INPCK | BRKINT);
+    raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
+
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
+        return Z_Err;
+    }
+
+    return Z_Ok;
+}
+
+Z_Result z_disable_raw_mode()
+{
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios) == -1) {
+        return Z_Err;
+    }
+
+    return Z_Ok;
+}
+
+Z_Result z_get_cursor_pos(int *x, int *y)
+{
+    printf("\033[6n");
+
+    if (scanf("\033[%d;%dR", y, x) == 2) {
+        return Z_Ok;
+    }
+
+    return Z_Err;
+}
+
+Z_Result z_get_screen_size_by_cursor(int *width, int *height)
+{
+    z_set_cursor_pos(999, 999);
+
+    return z_get_cursor_pos(width, height);
+}
+
+Z_Result z_get_screen_size_by_ioctl(int *width, int *height)
+{
+    struct winsize ws;
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != 0) {
+        return Z_Err;
+    }
+
+    *width = ws.ws_col;
+    *height = ws.ws_row;
+
+    return Z_Ok;
+}
+
+Z_Result z_get_screen_size(int *width, int *height)
+{
+    if (z_get_screen_size_by_ioctl(width, height) == Z_Ok) {
+        return Z_Ok;
+    }
+
+    return z_get_screen_size_by_cursor(width, height);
+}
+
+Z_Result z_register_change_in_window_size(void funciton(int))
+{
+    struct sigaction sa;
+    sa.sa_handler = funciton;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+
+    if (sigaction(SIGWINCH, &sa, NULL) == -1) {
+        return Z_Err;
+    }
+
+    return Z_Ok;
+}
+
+Z_Result z_enable_full_buffering(FILE *fp)
+{
+    // do not flush on '\n'
+    if (setvbuf(fp, NULL, _IOFBF, BUFSIZ) != 0) {
+        return Z_Err;
+    }
+
+    return Z_Ok;
+}
+
+int z_wait_for_byte()
+{
+    char c;
+
+    if (read(STDIN_FILENO, &c, 1) != 1) {
+        return Z_KEY_EMPTY;
+    }
+
+    return c;
+}
+
+#define CHAR2_TO_INT(a, b) ((unsigned short)((((unsigned short)b) << 8) | a))
+
+int z_read_escape_key()
+{
+    unsigned short key;
+
+    if (read(STDIN_FILENO, &key, 2) != 2) {
+        return '\033';
+    }
+
+    switch (key) {
+        case CHAR2_TO_INT('[', 'A'): return Z_KEY_ARROW_UP;
+        case CHAR2_TO_INT('[', 'B'): return Z_KEY_ARROW_DOWN;
+        case CHAR2_TO_INT('[', 'C'): return Z_KEY_ARROW_RIGHT;
+        case CHAR2_TO_INT('[', 'D'): return Z_KEY_ARROW_LEFT;
+        case CHAR2_TO_INT('[', '1'): return Z_KEY_HOME; // might be with a ~
+        case CHAR2_TO_INT('[', '5'): return Z_KEY_PAGE_UP; // might be with a ~
+        case CHAR2_TO_INT('[', '6'): return Z_KEY_PAGE_DOWN; // might be with a ~
+    }
+
+    return '\033';
+}
+
+int z_read_key()
+{
+    char c = z_wait_for_byte();
+
+    if (c == '\033') {
+        return z_read_escape_key();
+    }
+
+    return c;
+}
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   path implementation
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+const char *z_get_path_extention(const char *pathname)
+{
+    const char *last_dot = strrchr(pathname, '.');
+
+    if (last_dot == NULL) {
+        return pathname;
+    }
+
+    return last_dot + 1;
+}
+
+const char *z_get_home_path()
+{
+    const char *home = getenv("HOME");
+
+    if (home == NULL) {
+        return ".";
+    }
+
+    return home;
+}
+
+void z_expand_path(const char *pathname, Z_Str *output)
+{
+    if (pathname[0] == '~') {
+        z_str_push(output, "%s%s", z_get_home_path(), pathname + 1);
+    }
+
+    z_str_push(output, "%s", pathname);
+}
+
+char *z_compress_path(const char *pathname)
+{
+    const char *home = z_get_home_path();
+    int home_len = strlen(home);
+
+    if (strncmp(home, pathname, home_len) == 0) {
+        int len = strlen(pathname) - home_len + 1;
+        char *ret = malloc(sizeof(char) * len);
+        ret[0] = '~';
+        strcpy(ret + 1, pathname + home_len);
+
+        return ret;
+    }
+
+    return strdup(pathname);
+}
+
+Z_Result z_dir_traverse(const char *dir, bool action(const char *))
+{
+    struct dirent *de;
+    DIR *dr = opendir(dir);
+
+    if (dr == NULL) {
+        return Z_Err;
+    }
+
+    char fullPath[PATH_MAX];
+
+    while ((de = readdir(dr))) {
+
+        const char *file = de->d_name;
+
+        int len = snprintf(fullPath, PATH_MAX, "%s/%s", dir, file);
+        fullPath[len] = '\0';
+
+        if (action(fullPath) == false) {
+            break;
+        }
+    }
+
+    closedir(dr);
+
+    return Z_Ok;
+}
+
+bool z_is_extention_equal(const char *pathname, const char *extention)
+{
+    return strcmp(z_get_path_extention(pathname), extention) == 0;
+}
+
+bool z_is_dir(const char *pathname)
+{
+    struct stat sb;
+    stat(pathname, &sb);
+
+    return S_ISDIR(sb.st_mode);
+}
+
+bool z_is_regular_file(const char *pathname)
+{
+    struct stat sb;
+    stat(pathname, &sb);
+
+    return S_ISREG(sb.st_mode);
+}
+
+bool z_is_path_exists(const char *pathname)
+{
+    return !access(pathname, F_OK);
+}
+
+Z_Result z_write_file(const char *fileName, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+
+    FILE *fp = fopen(fileName, "w");
+
+    if (fp == NULL) {
+        return Z_Err;
+    }
+
+    vfprintf(fp, fmt, ap);
+    va_end(ap);
+
+    return Z_Ok;
+}
+
+Z_Result z_append_file(const char *fileName, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+
+    FILE *fp = fopen(fileName, "a");
+
+    if (fp == NULL) {
+        return Z_Err;
+    }
+
+    vfprintf(fp, fmt, ap);
+    va_end(ap);
+
+    return Z_Ok;
+}
+
+Z_Result z_read_file(const char *fileName, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+
+    FILE *fp = fopen(fileName, "r");
+
+    if (fp == NULL) {
+        return Z_Err;
+    }
+
+    if (vfscanf(fp, fmt, ap) == EOF) {
+        fclose(fp);
+        return Z_Err;
+    }
+
+    va_end(ap);
     fclose(fp);
-	return Ok;
+
+    return Z_Ok;
 }
 
-Result redirectFd(int srcFd, const char *destFileName)
+Z_Result z_redirect_fd(int srcFd, const char *destFileName)
 {
-	int destFd = open(destFileName, O_WRONLY);
+    int destFd = open(destFileName, O_WRONLY);
 
-	if (destFd == -1) {
-		return Err;
-	}
+    if (destFd == -1) {
+        return Z_Err;
+    }
 
-	if (dup2(destFd, srcFd) == -1) {
-		close(destFd);
-		return Err;
-	}
+    if (dup2(destFd, srcFd) == -1) {
+        close(destFd);
+        return Z_Err;
+    }
 
-	close(destFd);
+    close(destFd);
 
-	return Ok;
+    return Z_Ok;
 }
 
-Result traverseFile(const char *fileName, int bufSize, bool action(char[bufSize]))
+Z_Result z_popen2(char *pathname, char *argv[], FILE *ppipe[2])
 {
-	FILE *fp = fopen(fileName, "r");
+    int output[2];
+    int input[2];
 
-	if (fp == NULL) {
-		return Err;
-	}
+    if (pipe(output) == -1 || pipe(input) == -1) {
+        return Z_Err;
+    }
 
-	char buf[bufSize];
-	while (fgets(buf, bufSize, fp) && action(buf));
+    int pid = fork();
 
-	return Ok;
+    if (pid == -1) {
+        return Z_Err;
+    }
+
+    if (pid) {
+        // parent
+        close(output[Z_Pipe_Mode_Write]);
+        ppipe[Z_Pipe_Mode_Write] = fdopen(input[Z_Pipe_Mode_Write], "w");
+        ppipe[Z_Pipe_Mode_Read] = fdopen(output[Z_Pipe_Mode_Read], "r");
+    } else {
+        // child
+        dup2(input[Z_Pipe_Mode_Read], STDIN_FILENO);
+        dup2(output[Z_Pipe_Mode_Write], STDOUT_FILENO);
+        close(input[Z_Pipe_Mode_Write]);
+        close(input[Z_Pipe_Mode_Read]);
+        close(output[Z_Pipe_Mode_Write]);
+        close(output[Z_Pipe_Mode_Read]);
+        execvp(pathname, argv);
+        exit(EXIT_FAILURE);
+    }
+
+    return Z_Ok;
 }
 
-void getFullFileName(const char *dirName, const char *fileName, char *dest, int destLen)
+bool z_mkdir(const char *pathname)
 {
-	snprintf(dest, destLen, "%s/%s", dirName, fileName);
+    int status = mkdir(pathname, 0777);
+
+    if (status == 0) {
+        return true;
+    } else if (errno == EEXIST) {
+        z_print_warning("cannot create directory ‘%s’: File exists", pathname);
+    } else {
+        z_print_error("%s", strerror(errno));
+    }
+
+    return false;
 }
 
-Result popen2(char *path, char *argv[], FILE *ppipe[2])
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   string implementation
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+Z_Str z_str_new(const char *fmt, ...)
 {
-	int output[2];
-	int input[2];
+    va_list ap;
+    va_start(ap, fmt);
+    Z_Str s = z_str_new_va(fmt, ap);
+    va_end(ap);
 
-	if (pipe(output) == -1 || pipe(input) == -1) {
-		return Err;
-	}
-
-	int pid = fork();
-
-	if (pid == -1) {
-		return Err;
-	}
-
-	if (pid) {
-		// parent
-		close(output[Write]);
-		ppipe[Write] = fdopen(input[Write], "w");
-		ppipe[Read] = fdopen(output[Read], "r");
-	} else {
-		// child
-		dup2(input[Read], STDIN_FILENO);
-		dup2(output[Write], STDOUT_FILENO);
-		close(input[Write]);
-		close(input[Read]);
-		close(output[Write]);
-		close(output[Read]);
-		execvp(path, argv);
-		exit(EXIT_FAILURE);
-	}
-
-	return Ok;
+    return s;
 }
 
-/*********************************************
-
-
-              String IMPLEMENTATION
-
-
-**********************************************/
-
-
-void swap(void *a, void *b, const size_t size)
+Z_Str z_str_new_va(const char *fmt, va_list ap)
 {
-	char tmp[size];
-	memcpy(tmp, a, size);
-	memcpy(a, b, size);
-	memcpy(b, tmp, size);
+    Z_Str s = {0};
+    z_str_push_va(&s, fmt, ap);
+
+    return s;
 }
 
-size_t getFileSize(FILE *fp)
+void z_str_init(Z_Str *s, const char *fmt, ...)
 {
-	const size_t curr = ftell(fp);
-	fseek(fp, 0, SEEK_END);
-
-	const size_t size = ftell(fp);
-	fseek(fp, curr, SEEK_SET);
-
-	return size;
+    va_list ap;
+    va_start(ap, fmt);
+    z_str_init_va(s, fmt, ap);
+    va_end(ap);
 }
 
-int getFmtSize(const char *fmt, ...)
+void z_str_init_va(Z_Str *s, const char *fmt, va_list ap)
+{
+    s->ptr = NULL;
+    s->len = 0;
+    s->capacity = 0;
+
+    z_str_push_va(s, fmt, ap);
+}
+
+void z_str_push(Z_Str *s, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    z_str_push_va(s, fmt, ap);
+    va_end(ap);
+}
+
+void z_str_push_va(Z_Str *s, const char *fmt, va_list ap)
+{
+    int len = z_get_fmt_size_va(fmt, ap);
+    z_ensure_capacity(s, s->len + len + 1);
+
+    va_list ap1;
+    va_copy(ap1, ap);
+    vsnprintf(s->ptr + s->len, len + 1, fmt, ap1);
+    va_end(ap1);
+
+    s->len = s->len + len;
+}
+
+void z_str_push_c(Z_Str *s, char c)
+{
+    z_ensure_capacity(s, s->len + 1);
+    s->ptr[s->len++] = c;
+    z_null_terminate(s);
+}
+
+char z_str_top_c(Z_Str *s)
+{
+    return s->ptr[s->len - 1];
+}
+
+char z_str_pop_c(Z_Str *s)
+{
+    return s->ptr[--s->len];
+}
+
+void z_str_push_str(Z_Str *dst, const Z_Str_Slice src)
+{
+    z_str_push(dst, "%.*s", src.len, src.ptr);
+}
+
+int z_str_len(Z_Str_Slice s)
+{
+    return s.len;
+}
+
+bool z_str_is_empty(Z_Str_Slice s)
+{
+    return s.len == 0;
+}
+
+int z_str_cmp(Z_Str_Slice s1, Z_Str_Slice s2)
+{
+    if (s1.len > s2.len) {
+        return 1;
+    } else if (s1.len < s2.len) {
+        return -1;
+    } else {
+        return memcmp(s1.ptr, s2.ptr, s1.len);
+    }
+}
+
+int z_str_n_cmp(Z_Str_Slice s1, Z_Str_Slice s2, int n)
+{
+    assert(s1.len >= n && s2.len >= n);
+    return memcmp(s1.ptr, s2.ptr, n);
+}
+
+Z_Str_Slice z_str_tok_init(Z_Str_Slice s)
+{
+    Z_Str_Slice slice = {
+        .len = 0,
+        .ptr = s.ptr,
+    };
+
+    return slice;
+}
+
+Z_Result z_str_tok_next(Z_Str_Slice s, Z_Str_Slice *slice, const char *delim)
+{
+    char *start = slice->ptr + slice->len;
+    char *str_end = s.ptr + s.len;
+
+    while (start < str_end && strchr(delim, *start) != NULL) {
+        start++;
+    }
+
+    char *end = start;
+
+    while (end < str_end && strchr(delim, *end) == NULL) {
+        end++;
+    }
+
+    if (start == str_end) {
+        return Z_Err;
+    }
+
+    slice->ptr = start;
+    slice->len = end - start;
+
+    return Z_Ok;
+}
+
+void z_str_replace(Z_Str *s, const char *target, const char *replacement); // TODO: implement
+void z_str_trim(Z_Str *s); // TODO: implement
+void z_str_trim_cset(Z_Str *s, const char *cset); // TODO: implement
+
+void z_str_print(Z_Str_Slice s)
+{
+    printf("%.*s", s.len, s.ptr);
+}
+
+void z_str_println(Z_Str_Slice s)
+{
+    printf("%.*s\n", s.len, s.ptr);
+}
+
+void z_str_free(Z_Str s)
+{
+    free(s.ptr);
+}
+
+void z_str_free_ptr(Z_Str *s)
+{
+    free(s->ptr);
+}
+
+void z_str_clear(Z_Str *s)
+{
+    s->len = 0;
+    z_null_terminate(s);
+}
+
+Z_Str z_str_get_line(FILE *fp)
+{
+    Z_Str s;
+    s.ptr = NULL;
+    size_t capacity = 0;
+
+    s.len = getline(&s.ptr, &capacity, fp);
+    s.capacity = capacity;
+
+    if (s.len == -1) {
+        return z_str_new("");
+    }
+
+	if (s.len > 0 && z_str_top_c(&s) == '\n') {
+        z_str_pop_c(&s);
+    }
+
+    return s;
+}
+
+Z_Result z_read_whole_file(Z_Str *s, const char *pathname)
+{
+    FILE *fp = fopen(pathname, "r");
+
+    if (fp == NULL) {
+        return Z_Err;
+    }
+
+    int file_size = z_get_file_size(fp);
+
+    s->capacity = file_size + 1;
+    s->ptr = malloc(sizeof(char) * s->capacity);
+    s->len = fread(s->ptr, sizeof(char), file_size, fp);
+    s->ptr[s->len] = '\0';
+
+    fclose(fp);
+
+    return Z_Ok;
+}
+
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//
+//
+//   cmd implementation
+//
+//
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+//       *       *       *       *       *       *        *        *
+//   *       *       *       *       *       *       *        *        *
+
+bool _z_should_rebuild(const char *target, ...)
+{
+    va_list ap;
+    va_start(ap, target);
+    bool should_rebuild = z_should_rebuild_va(target, ap);
+    va_end(ap);
+
+    return should_rebuild;
+}
+
+bool z_should_rebuild_va(const char *target, va_list ap)
+{
+    va_list ap1;
+    va_copy(ap1, ap);
+
+	struct stat target_stat;
+	struct stat dependency_stat;
+
+    if (stat(target, &target_stat)) {
+        return true;
+    }
+
+    const char *dependency = va_arg(ap, const char *);
+
+    while (dependency) {
+        if (stat(dependency, &dependency_stat)) {
+            z_print_error("cannot access '%s': No such file", dependency);
+            va_end(ap1);
+            return false;
+        } else if (target_stat.st_mtim.tv_sec < dependency_stat.st_mtim.tv_sec) {
+            va_end(ap1);
+            return true;
+        }
+
+        dependency = va_arg(ap, const char *);
+    }
+
+    return false;
+}
+
+void z_rebuild_yourself(const char *src_pathname, char **argv)
+{
+    if (!z_should_rebuild(argv[0], src_pathname, __FILE__)) {
+        return;
+    }
+
+    int status;
+    status = z_run_async("cc", src_pathname, "-o", argv[0]);
+
+    if (status != 0) {
+        exit(status);
+    }
+
+	status = execvp(argv[0], argv);
+    exit(1);
+}
+
+void z_cmd_init(Z_Cmd *cmd)
+{
+    cmd->ptr = NULL;
+    cmd->len = 0;
+    cmd->capacity = 0;
+}
+
+void _z_cmd_append(Z_Cmd *cmd, ...)
 {
 	va_list ap;
-	va_start(ap, fmt);
-
-	int size = getFmtSizeVa(fmt, ap);
+    va_start(ap, cmd);
+    z_cmd_append_va(cmd, ap);
 	va_end(ap);
-
-	return size;
 }
 
-int getFmtSizeVa(const char *fmt, va_list ap)
+void z_cmd_append_va(Z_Cmd *cmd, va_list ap)
 {
 	va_list ap1;
-	va_copy(ap1, ap);
+    va_copy(ap1, ap);
 
-	int size = vsnprintf(NULL, 0, fmt, ap1);
+	const char *arg = va_arg(ap1, const char *);
+
+	while (arg) {
+        z_ensure_capacity(cmd, cmd->len + 1);
+		cmd->ptr[cmd->len++] = strdup(arg);
+		arg = va_arg(ap1, const char *);
+	}
+
 	va_end(ap1);
-
-	return size;
 }
 
-void *memdup(const void *mem, const size_t size)
+void z_cmd_print_arg(const char *arg)
 {
-	void *newMem = malloc(size);
-	memcpy(newMem, mem, size);
-	return newMem;
+	if (strchr(arg, ' ')) {
+		printf("'%s'", arg);
+	} else {
+		printf("%s", arg);
+	}
 }
 
-int zatarMax(int a, int b)
+void z_cmd_print(const Z_Cmd *cmd)
 {
-	return a > b ? a : b;
+	printf("[" Z_COLOR_GREEN "CMD" Z_COLOR_RESET "]");
+
+	for (int i = 0; i < cmd->len; i++) {
+		printf(" ");
+		z_cmd_print_arg(cmd->ptr[i]);
+	}
+
+	printf("\n");
 }
 
-int zatarMin(int a, int b)
+int z_cmd_run_async(Z_Cmd *cmd)
 {
-	return a > b ? b : a;
+    z_null_terminate(cmd);
+	z_cmd_print(cmd);
+
+	pid_t pid = fork();
+	int status = 0;
+
+	if (pid == -1) {
+		z_print_error("fork couln't create child");
+	} else if (pid == 0) {
+		exit(execvp(cmd->ptr[0], cmd->ptr));
+	} else {
+		waitpid(pid, &status, 0);
+	}
+
+	if (status != 0) {
+		z_print_error(Z_COLOR_RED "exited abnormally " Z_COLOR_RESET
+                "with code " Z_COLOR_RED "%d" Z_COLOR_RESET, status);
+	}
+
+	return status;
 }
 
-int zatarMin3(int a, int b, int c)
+int _z_run_async(const char *arg, ...)
 {
-	return zatarMin(a, zatarMin(b, c));
+	va_list ap;
+	va_start(ap, arg);
+
+	Z_Cmd cmd;
+	z_cmd_init(&cmd);
+	z_cmd_append(&cmd, arg);
+	z_cmd_append_va(&cmd, ap);
+
+	int status = z_cmd_run_async(&cmd);
+
+    z_cmd_free(&cmd);
+	va_end(ap);
+
+	return status;
 }
 
-int zatarMax3(int a, int b, int c)
+void z_cmd_free(Z_Cmd *cmd)
 {
-	return zatarMax(a, zatarMax(b, c));
+    for (int i = 0; i < cmd->len; i++) {
+        free(cmd->ptr[i]);
+    }
+
+    free(cmd->ptr);
 }
 
+void z_cmd_clear(Z_Cmd *cmd)
+{
+    for (int i = 0; i < cmd->len; i++) {
+        free(cmd->ptr[i]);
+    }
 
-/*============================================
+    cmd->len = 0;
+}
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
 
+#endif // end implementation
+#endif // end header
 
-             -End-Implementation-
-
-
-=============================================*/
-#endif // LIBZATAR_IMPL
-#endif // LIBZATRAR_h
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
+//       $       $       $       $       $       $        $        $
+//   $       $       $       $       $       $       $        $        $
