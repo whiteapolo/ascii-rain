@@ -5,16 +5,17 @@
 ## Quick Start
 
 ```console
-$ make
+$ cc build.c -o bulild
+$ ./build
 $ ./ascii-rain
 ```
 
 ### System Wide installation
 ```console
-$ sudo make install
+$ sudo ./build install
 ```
 
 ### Uninstall
 ```console
-$ sudo make uninstall
+$ sudo ./build uninstall
 ```
